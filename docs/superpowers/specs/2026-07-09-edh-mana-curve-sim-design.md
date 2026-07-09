@@ -106,8 +106,10 @@ unit test for the scorer.
 
 ### 3.2 Mulligan policy (his hand-crafted heuristic — encode faithfully)
 
-Let L = lands in the 7-card hand (Sol Ring counts as a land for keep tests),
-S = signets, SR = Sol Ring present.
+Let L = **actual** lands in the 7-card hand (Sol Ring is **not** counted as a
+land here — it only counts as a land during *bottoming*, §3.3; in the keep tests
+it matters solely via the explicit `SR` branch, matching the article's two
+separate keep clauses), S = signets, SR = Sol Ring present.
 
 | Hand attempt | Counted mulls so far | Bottom on keep | Keep condition |
 |---|---|---|---|

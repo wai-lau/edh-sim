@@ -455,3 +455,36 @@ def simulate_deck_cum(deck_counts, commander_mv, n_games, base_seed, max_turns,
         for t in range(max_turns):
             means[t] += (cum[t] - means[t]) / (i + 1)
     return means
+
+
+@njit(cache=True)
+def deck_drawstats(deck_counts, commander_mv, n_games, base_seed, n_turns,
+                   adaptive, wipes, cap):
+    """Histogram of the mana value X at which draw cards are played (X = the mana
+    paid = cards drawn). Observed from outside play_turn: a draw fired iff
+    hand[DRAW] dropped, and X = (draw_ptr advance) - 1 (the always-on-the-draw
+    card). hist[x] = number of draw-card casts paying x mana."""
+    hist = np.zeros(16, dtype=np.int64)
+    for i in range(n_games):
+        s = _game_seed(base_seed, i)
+        rng = new_rng(s)
+        lib = build_library(deck_counts)
+        if adaptive:
+            hand, ptr = draw_opening_hand_adaptive(lib, rng, n_turns)
+        else:
+            hand, ptr = draw_opening_hand(lib, rng)
+        board = np.zeros(NCODE, dtype=np.int64)
+        cstate = np.array([commander_mv, 0], dtype=np.int64)
+        wstate = np.zeros(1, dtype=np.int64)
+        wrng = new_rng(np.uint64(s) + np.uint64(0x2545F4914F6CDD1D))
+        for turn in range(1, n_turns + 1):
+            if wipes:
+                maybe_wipe(board, cstate, wstate, wrng, turn)
+            d_before = hand[DRAW]
+            p_before = ptr
+            ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
+            if hand[DRAW] < d_before:
+                x = ptr - p_before - 1
+                if 0 <= x < 16:
+                    hist[x] += 1
+    return hist

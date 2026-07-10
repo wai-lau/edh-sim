@@ -17,7 +17,7 @@ from optimizer import START_DECKS, _fix_sum, optimize_precise
 MVS = [2, 3, 4, 5, 6]
 TURNS = list(range(2, 16))                     # 2..15
 CENTERS = {7: "B4 Optimized", 9: "B3 Upgraded", 11: "B2 Core"}
-SIGMAS = [1.5, 2.0, 2.5]
+SIGMAS = [1.0, 1.5, 2.0]     # pointier weighting (fewer tail games); 1.5 = default
 CAP = 12.0
 SC = "/tmp/claude-1000/-home-wai-src-edh-sim/60ad851b-b04c-47bd-8207-d12d4aaf370d/scratchpad"
 OUT = f"{SC}/final.json"

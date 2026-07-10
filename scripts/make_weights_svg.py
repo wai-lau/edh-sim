@@ -6,7 +6,7 @@ import math
 import pathlib
 
 TURNS = list(range(2, 16))
-SIGMA = 2.0
+SIGMA = 1.5     # pointier weighting -> fewer far-tail games per bracket
 BRACKETS = [                       # (center, label, colour)
     (7, "B4 Optimized (fast)", "#2563eb"),
     (9, "B3 Upgraded (mid)", "#d97706"),

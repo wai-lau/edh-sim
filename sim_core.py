@@ -174,6 +174,11 @@ def mulligan_keep_adaptive(hand, attempt, n_turns):
     # requirement (even at the free attempt 1) over-mulligans and loses value, so
     # keep any 3-4 land hand; the DP's curve-sensitivity is too soft to encode.
     if 3 <= L <= 4:
+        # fast decks (B4/5): need at least one non-rock play (a real spell), not
+        # an all-lands-and-rocks hand. Rarely fires (fast decks run ~no rocks).
+        if n_turns <= 6:
+            nonrock = hand[1] + hand[2] + hand[3] + hand[4] + hand[5] + hand[6]
+            return nonrock >= 1
         return True
     if L == 2:
         return rocks >= 1                  # 2 lands ok with a rock (helps slow decks)

@@ -19,28 +19,40 @@ import math
 import time
 from multiprocessing import Pool
 
-from optimizer import optimize_commander
+import numpy as np
+
+from optimizer import optimize_commander, local_search
 
 MVS = [2, 3, 4, 5, 6]
-TURNS = list(range(2, 13))                 # bottom = T2 (T1 dropped, per design)
-# bracket centers; groups {4,5}->5, {3}->7, {1,2}->9
-CENTERS = {5: "B4/B5 Optimized+cEDH", 7: "B3 Upgraded", 9: "B1/B2 Exhibition+Core"}
+TURNS = list(range(2, 16))                 # 2..15: covers B5 (1-6) up to B1 (12+)
+# bracket centers from r/EDH game-length data (midpoints). B5 (1-6) and B1 (12+)
+# are ignored per request -- the extremes the model fits worst. Middle three only.
+CENTERS = {7: "B4 Optimized", 9: "B3 Upgraded", 11: "B2 Core"}
 SIGMAS = [1.5, 2.0, 2.5]
 
 OUT_JSON = ("/tmp/claude-1000/-home-wai-src-edh-sim/"
             "60ad851b-b04c-47bd-8207-d12d4aaf370d/scratchpad/overnight.json")
 
 CFG = {"max_sims": 500_000, "sim_start": 50_000, "sim_step": 30_000}
+SEED_DECKS = None          # {(t, mv): deck} warm-start decks, or None (cold start)
 
 
 def worker(task):
     t, mv, seed = task
     try:
-        best, mean = optimize_commander(
-            mv, restarts=1, master_seed=seed,
-            max_sims=CFG["max_sims"], sim_start=CFG["sim_start"],
-            sim_step=CFG["sim_step"], switch_star=10 ** 9, n_turns=t,
-            adaptive=True)                 # use the DP-derived adaptive mulligan
+        if SEED_DECKS is not None and (t, mv) in SEED_DECKS:   # warm start
+            start = np.asarray(SEED_DECKS[(t, mv)], dtype=np.int64)
+            best, mean = local_search(
+                mv, start, base_seed=seed,
+                max_sims=CFG["max_sims"], sim_start=CFG["sim_start"],
+                sim_step=CFG["sim_step"], switch_star=10 ** 9, n_turns=t,
+                adaptive=True)
+        else:
+            best, mean = optimize_commander(
+                mv, restarts=1, master_seed=seed,
+                max_sims=CFG["max_sims"], sim_start=CFG["sim_start"],
+                sim_step=CFG["sim_step"], switch_star=10 ** 9, n_turns=t,
+                adaptive=True)             # use the DP-derived adaptive mulligan
         return (t, mv), [int(x) for x in best], float(mean), None
     except Exception as e:                 # never let one cell kill the round
         return (t, mv), None, -1e9, repr(e)
@@ -83,11 +95,24 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=float, default=7.0)
     ap.add_argument("--max-sims", type=int, default=500_000)
+    ap.add_argument("--sim-start", type=int, default=50_000)
+    ap.add_argument("--sim-step", type=int, default=30_000)
     ap.add_argument("--workers", type=int, default=11)
     ap.add_argument("--max-rounds", type=int, default=40)
+    ap.add_argument("--seed-json", type=str, default="",
+                    help="warm-start each cell from the 'raw' optima in this JSON")
     a = ap.parse_args()
     CFG["max_sims"] = a.max_sims
+    CFG["sim_start"] = a.sim_start
+    CFG["sim_step"] = a.sim_step
     budget = a.hours * 3600
+
+    if a.seed_json:
+        global SEED_DECKS
+        raw = json.load(open(a.seed_json))["raw"]
+        SEED_DECKS = {tuple(int(x) for x in k.split(",")): v["deck"]
+                      for k, v in raw.items()}
+        print(f"warm-starting from {a.seed_json} ({len(SEED_DECKS)} cells)", flush=True)
 
     cells = [(t, mv) for t in TURNS for mv in MVS]
     best_deck, best_crit = {}, {}

@@ -470,3 +470,45 @@ def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
         m2 += d * (x - mean)
     var = m2 / (n_games - 1) if n_games > 1 else 0.0
     return mean, var
+
+
+@njit(cache=True)
+def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipes):
+    """Play one game to max_turns, returning the CUMULATIVE criterion after each
+    turn: cum[t-1] = horizon-t criterion. One game -> every horizon at once, since
+    a horizon-T game is the horizon-(T+1) game truncated (same deck, same seed).
+    Mulligan uses n_turns=max_turns (non-fast); the fast-deck guard (H<=6) is a
+    near-no-op, so this matches per-horizon simulate_deck exactly for T>=7."""
+    rng = new_rng(seed)
+    lib = build_library(deck_counts)
+    if adaptive:
+        hand, ptr = draw_opening_hand_adaptive(lib, rng, max_turns)
+    else:
+        hand, ptr = draw_opening_hand(lib, rng)
+    board = np.zeros(NCODE, dtype=np.int64)
+    cstate = np.array([commander_mv, 0], dtype=np.int64)
+    wstate = np.zeros(1, dtype=np.int64)
+    wrng = new_rng(np.uint64(seed) + np.uint64(0x2545F4914F6CDD1D))
+    cum = np.zeros(max_turns, dtype=np.float64)
+    total = 0.0
+    for turn in range(1, max_turns + 1):
+        if wipes:
+            maybe_wipe(board, cstate, wstate, wrng, turn)
+        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
+        total += score_board(board, cstate[1], cstate[0])
+        cum[turn - 1] = total
+    return cum
+
+
+@njit(cache=True)
+def simulate_deck_cum(deck_counts, commander_mv, n_games, base_seed, max_turns,
+                      adaptive, wipes):
+    """Mean criterion for every horizon 1..max_turns from n_games cumulative games.
+    means[t-1] = expected horizon-t criterion."""
+    means = np.zeros(max_turns, dtype=np.float64)
+    for i in range(n_games):
+        s = _game_seed(base_seed, i)
+        cum = simulate_game_cum(deck_counts, commander_mv, s, max_turns, adaptive, wipes)
+        for t in range(max_turns):
+            means[t] += (cum[t] - means[t]) / (i + 1)
+    return means

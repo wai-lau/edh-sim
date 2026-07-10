@@ -11,7 +11,7 @@ See docs/superpowers/specs/2026-07-09-edh-mana-curve-sim-design.md §4.2.
 import itertools
 import numpy as np
 
-from sim_core import simulate_deck
+from sim_core import simulate_deck, simulate_deck_cum
 
 
 # --------------------------------------------------------------------------- #
@@ -124,6 +124,59 @@ START_DECKS = {
     5: np.array([6, 12, 10, 10, 8, 5, 8, 39, 0], dtype=np.int64),
     6: np.array([6, 12, 10, 12, 8, 3, 9, 38, 0], dtype=np.int64),
 }
+
+
+def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
+                   sim_start=15_000, sim_step=15_000, adaptive=True, wipes=True,
+                   verbose=False):
+    """Optimize the deck for EVERY horizon at once (one commander MV), sharing
+    evaluations across horizons. Each iteration: take the union of the cross
+    neighborhoods of all current per-horizon bests, evaluate every unique
+    candidate ONCE with a cumulative game batch (all horizons from one pass), then
+    update each horizon's best. Since adjacent-horizon optima overlap, the union
+    is far smaller than 14 separate neighborhoods -> big speedup vs per-cell.
+
+    Returns {T: (best_deck, criterion)}.
+    """
+    max_turn = max(horizons)
+    best = {T: np.asarray(start_decks[T], dtype=np.int64).copy() for T in horizons}
+    sims = sim_start
+    it = 0
+    while True:
+        it += 1
+        seed = base_seed + it * 7919                     # CRN within iter, fresh per iter
+        cands = {}                                        # union of neighborhoods + bests
+        for T in horizons:
+            cands[tuple(int(x) for x in best[T])] = best[T]
+            for nb in neighbors_cross(best[T]):
+                cands[tuple(int(x) for x in nb)] = nb
+        crit = {k: simulate_deck_cum(np.asarray(d, dtype=np.int64), mv, sims, seed,
+                                     max_turn, adaptive, wipes)
+                for k, d in cands.items()}
+        moved = False
+        for T in horizons:
+            bd, bv = best[T], -1e18
+            for k, d in cands.items():
+                v = crit[k][T - 1]
+                if v > bv:
+                    bv, bd = v, d
+            if not np.array_equal(bd, best[T]):
+                best[T] = np.asarray(bd, dtype=np.int64).copy()
+                moved = True
+        if verbose:
+            print(f"  mv{mv} it{it} sims={sims} cands={len(cands)} "
+                  f"{'MOVE' if moved else 'stay'}", flush=True)
+        sims += sim_step
+        if not moved and sims > max_sims:
+            break
+        if sims > max_sims * 3:
+            break
+    seed = base_seed + 987659
+    out = {}
+    for T in horizons:
+        m = simulate_deck_cum(best[T], mv, max_sims, seed, max_turn, adaptive, wipes)
+        out[T] = (best[T], float(m[T - 1]))
+    return out
 
 
 def deck_with_draw(base8, Y):

@@ -147,6 +147,42 @@ def bottom_cards(hand, n_bottom):
 
 
 @njit(cache=True)
+def mulligan_keep_adaptive(hand, attempt, n_turns):
+    """Horizon-aware keep policy distilled from the value-function DP.
+
+    Universal: never keep 5+ lands or 0-1 land on the free first two hands.
+    Fast (H<=6): 3 lands + a turn-1-2 play (4 lands needs a stronger curve).
+    Mid  (7-8): 3-4 lands + two cheap (1-3 drop) plays.
+    Slow (H>=9): 3-4 lands, or 2 lands + a mana rock (rocks cover a land).
+    Attempts 3+ (already bottoming) loosen toward keeping any 2-5 land hand.
+    """
+    L = hand[LAND]
+    SR = hand[SOLRING] > 0
+    rocks = hand[SIGNET] + (1 if SR else 0)
+
+    if attempt >= 5:
+        return True
+    if attempt >= 3:                       # loosened (already bottoming)
+        if L >= 6:
+            return False
+        if L == 0:
+            return attempt >= 4 and rocks >= 1
+        if L == 1:
+            return rocks >= 1 or attempt >= 4
+        return L <= 5                       # keep 2-5 lands
+    # attempts 1-2: keep 3-4 lands, MULL 5+ (the robust DP win). A hard curve
+    # requirement (even at the free attempt 1) over-mulligans and loses value, so
+    # keep any 3-4 land hand; the DP's curve-sensitivity is too soft to encode.
+    if 3 <= L <= 4:
+        return True
+    if L == 2:
+        return rocks >= 1                  # 2 lands ok with a rock (helps slow decks)
+    if L == 1:
+        return SR                          # 1 land only behind a Sol Ring
+    return False                           # 0 or 5+ lands: mull
+
+
+@njit(cache=True)
 def _hand_from(lib):
     h = np.zeros(9, dtype=np.int64)
     for i in range(7):
@@ -161,6 +197,20 @@ def draw_opening_hand(lib, rng):
         shuffle(lib, rng)
         hand = _hand_from(lib)
         if mulligan_keep(hand, attempt):
+            n_bottom = 0 if attempt <= 2 else (attempt - 2)
+            if n_bottom > 0:
+                bottom_cards(hand, n_bottom)
+            return hand, 7
+        attempt += 1
+
+
+@njit(cache=True)
+def draw_opening_hand_adaptive(lib, rng, n_turns):
+    attempt = 1
+    while True:
+        shuffle(lib, rng)
+        hand = _hand_from(lib)
+        if mulligan_keep_adaptive(hand, attempt, n_turns):
             n_bottom = 0 if attempt <= 2 else (attempt - 2)
             if n_bottom > 0:
                 bottom_cards(hand, n_bottom)
@@ -278,17 +328,76 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
 # Whole-game + Monte Carlo.                                                    #
 # --------------------------------------------------------------------------- #
 @njit(cache=True)
-def simulate_game(deck_counts, commander_mv, seed):
+def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False):
     rng = new_rng(seed)
     lib = build_library(deck_counts)
-    hand, ptr = draw_opening_hand(lib, rng)
+    if adaptive:
+        hand, ptr = draw_opening_hand_adaptive(lib, rng, n_turns)
+    else:
+        hand, ptr = draw_opening_hand(lib, rng)
     board = np.zeros(9, dtype=np.int64)
     cstate = np.array([commander_mv, 0], dtype=np.int64)
     total = 0.0
-    for turn in range(1, 8):
+    for turn in range(1, n_turns + 1):
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
         total += score_board(board, cstate[1], cstate[0])
     return total
+
+
+@njit(cache=True)
+def _deck9(deck_counts):
+    """Convert deck [c1..c6, sig, land] (len 8) to a length-9 code vector."""
+    d = np.zeros(9, dtype=np.int64)
+    d[LAND] = deck_counts[7]
+    for k in range(1, 7):
+        d[k] = deck_counts[k - 1]
+    d[SIGNET] = deck_counts[6]
+    d[SOLRING] = 1
+    return d
+
+
+@njit(cache=True)
+def build_library_codes(counts9):
+    n = 0
+    for i in range(9):
+        n += counts9[i]
+    lib = np.empty(n, dtype=np.int8)
+    idx = 0
+    for code in range(9):
+        for _ in range(counts9[code]):
+            lib[idx] = code
+            idx += 1
+    return lib
+
+
+@njit(cache=True)
+def simulate_from_hand(deck_counts, kept_hand, removed, commander_mv, seed, n_turns):
+    """One game from a FIXED opening hand. Draw pile = deck minus the original 7
+    (kept_hand + removed, the bottomed cards). Returns the criterion."""
+    rng = new_rng(seed)
+    remaining = _deck9(deck_counts) - kept_hand - removed
+    lib = build_library_codes(remaining)
+    shuffle(lib, rng)
+    hand = kept_hand.copy()
+    board = np.zeros(9, dtype=np.int64)
+    cstate = np.array([commander_mv, 0], dtype=np.int64)
+    total = 0.0
+    ptr = 0
+    for turn in range(1, n_turns + 1):
+        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
+        total += score_board(board, cstate[1], cstate[0])
+    return total
+
+
+@njit(cache=True)
+def vkeep(deck_counts, kept_hand, removed, commander_mv, n_games, base_seed, n_turns):
+    """Monte Carlo mean of simulate_from_hand over n_games -> V_keep(hand)."""
+    mean = 0.0
+    for i in range(n_games):
+        s = _game_seed(base_seed, i)
+        x = simulate_from_hand(deck_counts, kept_hand, removed, commander_mv, s, n_turns)
+        mean += (x - mean) / (i + 1)
+    return mean
 
 
 @njit(cache=True)
@@ -300,12 +409,12 @@ def _game_seed(base_seed, i):
 
 
 @njit(cache=True)
-def simulate_deck(deck_counts, commander_mv, n_games, base_seed):
+def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7, adaptive=False):
     mean = 0.0
     m2 = 0.0
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        x = simulate_game(deck_counts, commander_mv, s)
+        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive)
         d = x - mean
         mean += d / (i + 1)
         m2 += d * (x - mean)

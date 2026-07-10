@@ -13,7 +13,6 @@ Progress streams a line per completed unit (imap_unordered) with a running ETA.
 import argparse
 import json
 import math
-import sys
 import time
 from multiprocessing import Pool
 
@@ -70,7 +69,8 @@ def run(cfg):
     print("\n" + "=" * 62 + f"\nRAW per-turn optima   {LABELS}\n" + "=" * 62)
     for t in turns:
         print(f"\n### Turns = {t}")
-        print(f"{'MV':>3} | {'1d':>3}{'2d':>4}{'3d':>4}{'4d':>4}{'5d':>4}{'6d':>4} | Sig | Land | crit")
+        hdr = f"{'1d':>3}{'2d':>4}{'3d':>4}{'4d':>4}{'5d':>4}{'6d':>4}"
+        print(f"{'MV':>3} | {hdr} | Sig | Land | crit")
         for mv in MVS:
             print(_fmt(mv, decks[(t, mv)], crits[(t, mv)]))
 

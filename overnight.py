@@ -21,7 +21,7 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from optimizer import optimize_commander, local_search
+from optimizer import local_search, optimize_commander
 
 MVS = [2, 3, 4, 5, 6]
 TURNS = list(range(2, 16))                 # 2..15: covers B5 (1-6) up to B1 (12+)
@@ -75,7 +75,6 @@ def reweight(best_deck, turns, mu, sigma):
 
 
 def save(best_deck, best_crit, rounds_done, elapsed):
-    turns = sorted({t for (t, _) in best_deck})
     brackets = {}
     if all((t, mv) in best_deck for t in TURNS for mv in MVS):
         for sigma in SIGMAS:

@@ -9,80 +9,21 @@ Hand/board = int64[9] indexed by card code. Deck = int64[8] [c1..c6, sig, land],
 sum 98; one implicit Sol Ring -> 99-card library.
 """
 import numpy as np
-from numba import njit, int64
+from numba import int64, njit
 
-LAND = 0
-SIGNET = 7
-SOLRING = 8
-DRAW = 9        # "draw card": pay X mana, draw X cards; scores 0, resolves away
-NCODE = 10      # hands/boards are length-NCODE count vectors (codes 0..9)
-
-
-# --------------------------------------------------------------------------- #
-# PRNG: seedable xorshift64 with splitmix64 seeding (Numba-friendly).          #
-# --------------------------------------------------------------------------- #
-@njit(cache=True)
-def new_rng(seed):
-    s = np.empty(1, dtype=np.uint64)
-    z = np.uint64(seed) + np.uint64(0x9E3779B97F4A7C15)
-    z = (z ^ (z >> np.uint64(30))) * np.uint64(0xBF58476D1CE4E5B9)
-    z = (z ^ (z >> np.uint64(27))) * np.uint64(0x94D049BB133111EB)
-    z = z ^ (z >> np.uint64(31))
-    if z == np.uint64(0):
-        z = np.uint64(0x9E3779B97F4A7C15)
-    s[0] = z
-    return s
-
-
-@njit(cache=True)
-def next_u64(rng):
-    x = rng[0]
-    x ^= x << np.uint64(13)
-    x ^= x >> np.uint64(7)
-    x ^= x << np.uint64(17)
-    rng[0] = x
-    return x
-
-
-@njit(cache=True)
-def rand_below(rng, n):
-    return int64(next_u64(rng) % np.uint64(n))
-
-
-# --------------------------------------------------------------------------- #
-# Library.                                                                     #
-# --------------------------------------------------------------------------- #
-@njit(cache=True)
-def build_library(deck_counts):
-    lib = np.empty(99, dtype=np.int8)
-    idx = 0
-    for k in range(1, 7):                 # k-drops -> codes 1..6
-        for _ in range(deck_counts[k - 1]):
-            lib[idx] = k
-            idx += 1
-    for _ in range(deck_counts[6]):       # signets
-        lib[idx] = SIGNET
-        idx += 1
-    for _ in range(deck_counts[7]):       # lands
-        lib[idx] = LAND
-        idx += 1
-    n_draw = deck_counts[8] if deck_counts.shape[0] > 8 else 0   # draw cards (opt.)
-    for _ in range(n_draw):
-        lib[idx] = DRAW
-        idx += 1
-    lib[idx] = SOLRING                    # the one Sol Ring
-    idx += 1
-    return lib
-
-
-@njit(cache=True)
-def shuffle(lib, rng):
-    n = lib.shape[0]
-    for i in range(n - 1, 0, -1):
-        j = rand_below(rng, i + 1)
-        tmp = lib[i]
-        lib[i] = lib[j]
-        lib[j] = tmp
+from cards import (
+    DRAW,
+    LAND,
+    NCODE,
+    SIGNET,
+    SOLRING,
+    build_library,
+    build_library_codes,
+    deck9,
+    new_rng,
+    rand_below,
+    shuffle,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -141,8 +82,7 @@ def bottom_cards(hand, n_bottom):
         removable = (hand[LAND] + hand[SOLRING]) - 3
         if removable > 0:
             take = removable if removable < left else left
-            if take > hand[LAND]:
-                take = hand[LAND]
+            take = min(take, hand[LAND])
             hand[LAND] -= take
             left -= take
     # 3. spells, most expensive first (6 -> 1)
@@ -304,7 +244,7 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
         mana += 1
 
     # 5. turns 3 & 4: rock + (N-1)-drop (only if both are possible)
-    if turn == 3 or turn == 4:
+    if turn in (3, 4):
         N = mana
         if hand[SIGNET] > 0 and N >= 2 and (N - 1) >= 1 and _has_drop(hand, cstate, N - 1):
             hand[SIGNET] -= 1
@@ -389,8 +329,7 @@ def maybe_wipe(board, cstate, wstate, wrng, turn):
     chance = 0.10
     for _ in range(wstate[0]):
         chance *= 1.2
-    if chance > 1.0:
-        chance = 1.0
+    chance = min(chance, 1.0)
     if rand_below(wrng, 1000000) < int64(chance * 1000000.0):
         for k in range(1, 7):
             board[k] = 0                    # drops (creatures) wiped
@@ -423,38 +362,11 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False,
 
 
 @njit(cache=True)
-def _deck9(deck_counts):
-    """Convert deck [c1..c6, sig, land] (len 8) to a length-9 code vector."""
-    d = np.zeros(NCODE, dtype=np.int64)
-    d[LAND] = deck_counts[7]
-    for k in range(1, 7):
-        d[k] = deck_counts[k - 1]
-    d[SIGNET] = deck_counts[6]
-    d[SOLRING] = 1
-    d[DRAW] = deck_counts[8] if deck_counts.shape[0] > 8 else 0
-    return d
-
-
-@njit(cache=True)
-def build_library_codes(counts9):
-    n = 0
-    for i in range(NCODE):
-        n += counts9[i]
-    lib = np.empty(n, dtype=np.int8)
-    idx = 0
-    for code in range(NCODE):
-        for _ in range(counts9[code]):
-            lib[idx] = code
-            idx += 1
-    return lib
-
-
-@njit(cache=True)
 def simulate_from_hand(deck_counts, kept_hand, removed, commander_mv, seed, n_turns):
     """One game from a FIXED opening hand. Draw pile = deck minus the original 7
     (kept_hand + removed, the bottomed cards). Returns the criterion."""
     rng = new_rng(seed)
-    remaining = _deck9(deck_counts) - kept_hand - removed
+    remaining = deck9(deck_counts) - kept_hand - removed
     lib = build_library_codes(remaining)
     shuffle(lib, rng)
     hand = kept_hand.copy()

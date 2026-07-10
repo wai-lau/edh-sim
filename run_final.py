@@ -12,7 +12,7 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from optimizer import optimize_precise, _fix_sum, START_DECKS
+from optimizer import START_DECKS, _fix_sum, optimize_precise
 
 MVS = [2, 3, 4, 5, 6]
 TURNS = list(range(2, 16))                     # 2..15

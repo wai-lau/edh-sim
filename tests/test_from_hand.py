@@ -1,4 +1,5 @@
 import numpy as np
+
 from sim_core import simulate_from_hand, vkeep
 
 DECK4 = np.array([7, 19, 16, 0, 10, 5, 0, 41], dtype=np.int64)  # 4-mv, T7 optimum

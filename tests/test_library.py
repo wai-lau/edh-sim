@@ -1,5 +1,6 @@
 import numpy as np
-from sim_core import build_library, shuffle, new_rng
+
+from cards import build_library, new_rng, shuffle
 
 DECK = np.array([9, 0, 20, 14, 9, 4, 0, 42], dtype=np.int64)  # 2-mv row, sums 98
 

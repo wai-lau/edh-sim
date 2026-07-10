@@ -11,10 +11,11 @@ bottom the cards achieving that max.
 Bottom counts per attempt (London + free first mulligan): [0, 0, 1, 2, 3].
 All V_keep share one CRN seed so comparisons are fair.
 """
-import numpy as np
 from itertools import combinations_with_replacement
 
-from sim_core import vkeep, build_library, shuffle, new_rng, simulate_deck
+import numpy as np
+
+from sim_core import build_library, new_rng, shuffle, simulate_deck, vkeep
 
 CODE_NAMES = ["L", "1", "2", "3", "4", "5", "6", "S", "R"]  # by code 0..8
 BOTTOM = [0, 0, 1, 2, 3]          # attempt 1..5

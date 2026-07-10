@@ -9,6 +9,7 @@ iteration to avoid seed overfit; multiple restarts guard local maxima.
 See docs/superpowers/specs/2026-07-09-edh-mana-curve-sim-design.md §4.2.
 """
 import itertools
+
 import numpy as np
 
 from sim_core import simulate_deck, simulate_deck_cum

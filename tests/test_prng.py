@@ -1,4 +1,4 @@
-from sim_core import new_rng, next_u64, rand_below
+from cards import new_rng, next_u64, rand_below
 
 
 def test_prng_deterministic():

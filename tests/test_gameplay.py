@@ -1,5 +1,6 @@
 import numpy as np
-from sim_core import play_turn, new_rng
+
+from sim_core import new_rng, play_turn
 
 
 def blank():

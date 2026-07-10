@@ -9,6 +9,7 @@ reproduce with the same sign. The absolute band guards our own model against
 regressions.
 """
 import math
+
 import numpy as np
 import pytest
 

@@ -1,4 +1,5 @@
 import numpy as np
+
 from optimizer import neighbors_cross, neighbors_star
 
 DECK = np.array([6, 12, 13, 0, 13, 8, 7, 39], dtype=np.int64)

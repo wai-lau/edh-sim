@@ -1,4 +1,5 @@
 import numpy as np
+
 from sim_core import build_library, draw_opening_hand, new_rng
 
 DECK = np.array([6, 12, 13, 0, 13, 8, 7, 39], dtype=np.int64)  # 4-mv row, sums 98

@@ -1,4 +1,5 @@
 import numpy as np
+
 from sim_core import simulate_deck, simulate_deck_cum
 
 DECK = np.array([6, 12, 10, 10, 8, 4, 6, 42, 0], dtype=np.int64)

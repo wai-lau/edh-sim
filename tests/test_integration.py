@@ -5,7 +5,6 @@ differs). We assert the qualitative insights the optimizer must land on:
   - Insight #2: ~zero N-drops at the commander's own mana value.
   - Insight #4: a high land count, ~37-43.
 """
-import numpy as np
 import pytest
 
 from optimizer import optimize_commander

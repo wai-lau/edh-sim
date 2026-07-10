@@ -10,8 +10,8 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from sim_core import simulate_deck
 from optimizer import optimize_commander
+from sim_core import simulate_deck
 
 MVS = [2, 3, 4, 5, 6]
 LABELS = ["1d", "2d", "3d", "4d", "5d", "6d", "Sig", "Land"]

@@ -4,3 +4,5 @@ __pycache__/
 .venv/
 *.egg-info/
 .numba_cache/
+overnight_results.json
+*.out

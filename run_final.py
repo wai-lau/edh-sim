@@ -18,7 +18,7 @@ MVS = [2, 3, 4, 5, 6]
 TURNS = list(range(2, 16))                     # 2..15
 CENTERS = {7: "B4 Optimized", 9: "B3 Upgraded", 11: "B2 Core"}
 SIGMAS = [1.5, 2.0, 2.5]
-CAP = 10.0
+CAP = 12.0
 SC = "/tmp/claude-1000/-home-wai-src-edh-sim/60ad851b-b04c-47bd-8207-d12d4aaf370d/scratchpad"
 OUT = f"{SC}/final.json"
 SEED_DECKS = None
@@ -76,7 +76,16 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed-json", type=str, default="")
     ap.add_argument("--workers", type=int, default=11)
+    ap.add_argument("--restarts", type=int, default=CFG["n_restarts"])
+    ap.add_argument("--cheap-sims", type=int, default=CFG["cheap_sims"])
+    ap.add_argument("--final-sims", type=int, default=CFG["final_sims"])
+    ap.add_argument("--out", type=str, default=OUT)
     a = ap.parse_args()
+    CFG["n_restarts"] = a.restarts
+    CFG["cheap_sims"] = a.cheap_sims
+    CFG["final_sims"] = a.final_sims
+    global OUT
+    OUT = a.out
     if a.seed_json:
         global SEED_DECKS
         raw = json.load(open(a.seed_json))["raw"]

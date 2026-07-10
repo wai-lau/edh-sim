@@ -73,6 +73,7 @@ def save(decks, crits, done, total, elapsed):
 
 
 def main():
+    global OUT, SEED_DECKS
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed-json", type=str, default="")
     ap.add_argument("--workers", type=int, default=11)
@@ -84,10 +85,8 @@ def main():
     CFG["n_restarts"] = a.restarts
     CFG["cheap_sims"] = a.cheap_sims
     CFG["final_sims"] = a.final_sims
-    global OUT
     OUT = a.out
     if a.seed_json:
-        global SEED_DECKS
         raw = json.load(open(a.seed_json))["raw"]
         SEED_DECKS = {tuple(int(x) for x in k.split(",")): v["deck"] for k, v in raw.items()}
         print(f"warm-start: {a.seed_json} ({len(SEED_DECKS)} cells)", flush=True)

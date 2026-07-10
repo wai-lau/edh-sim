@@ -14,10 +14,11 @@ per-game engine is `@njit`-compiled, ~1M games/sec on one core.
 ## Results — mana curves by Commander bracket
 
 Our extension beyond Karsten: game length is the biggest lever on the curve, and
-it tracks deck power. We sweep the turn horizon (T = 2–12), re-optimize at each,
-and fold the per-horizon optima into per-bracket curves via a normal weighting
-centered on each bracket's characteristic game length (σ = 2 turns). Three
-distinct center-curves cover the five official Commander brackets:
+it tracks deck power. We sweep the turn horizon (T = 2–12), re-optimize at each
+with a **DP-derived adaptive mulligan** (see below), and fold the per-horizon
+optima into per-bracket curves via a normal weighting centered on each bracket's
+characteristic game length (σ = 2 turns). Three distinct center-curves cover the
+five official Commander brackets:
 
 Format `[1d 2d 3d 4d 5d 6d | Signets | Lands]`, **+ 1 Sol Ring** in every deck.
 "Signets" = any 2-mana rock (Signet / Talisman / Fellwar / Nature's Lore / …).
@@ -25,35 +26,50 @@ Format `[1d 2d 3d 4d 5d 6d | Signets | Lands]`, **+ 1 Sol Ring** in every deck.
 ### Fast tables — **Bracket 4 (Optimized) + Bracket 5 (cEDH)**, ~5-turn games
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 20 | 3 | 18 | 11 | 4 | 2 | 0 | 40 |
-| 3 | 18 | 16 | 1 | 13 | 5 | 2 | 1 | 42 |
-| 4 | 18 | 16 | 13 | 0 | 7 | 3 | 2 | 39 |
-| 5 | 17 | 17 | 13 | 8 | 0 | 3 | 1 | 39 |
-| 6 | 15 | 17 | 13 | 11 | 2 | 1 | 1 | 38 |
+| 2 | 22 | 0 | 19 | 10 | 4 | 2 | 0 | 41 |
+| 3 | 22 | 17 | 0 | 11 | 5 | 2 | 0 | 41 |
+| 4 | 22 | 17 | 11 | 0 | 5 | 2 | 1 | 40 |
+| 5 | 20 | 19 | 12 | 5 | 0 | 2 | 1 | 39 |
+| 6 | 18 | 19 | 13 | 7 | 2 | 1 | 1 | 37 |
 
 ### Mid tables — **Bracket 3 (Upgraded)**, ~7-turn games
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 11 | 1 | 19 | 13 | 8 | 5 | 0 | 41 |
-| 3 | 10 | 14 | 0 | 14 | 8 | 7 | 3 | 42 |
-| 4 | 10 | 13 | 13 | 0 | 10 | 8 | 4 | 40 |
-| 5 | 9 | 14 | 13 | 10 | 0 | 8 | 4 | 40 |
-| 6 | 8 | 14 | 13 | 12 | 6 | 3 | 4 | 38 |
+| 2 | 11 | 0 | 19 | 12 | 8 | 5 | 0 | 43 |
+| 3 | 10 | 14 | 0 | 14 | 9 | 7 | 2 | 42 |
+| 4 | 10 | 14 | 12 | 0 | 9 | 8 | 3 | 42 |
+| 5 | 9 | 14 | 13 | 9 | 0 | 8 | 3 | 42 |
+| 6 | 8 | 15 | 13 | 10 | 5 | 3 | 3 | 41 |
 
 ### Slow tables — **Bracket 1 (Exhibition) + Bracket 2 (Core)**, ~9-turn games
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 4 | 0 | 17 | 14 | 10 | 10 | 1 | 42 |
-| 3 | 3 | 8 | 0 | 15 | 10 | 14 | 6 | 42 |
-| 4 | 3 | 7 | 11 | 0 | 13 | 15 | 8 | 41 |
-| 5 | 3 | 7 | 11 | 12 | 0 | 17 | 8 | 40 |
-| 6 | 2 | 8 | 11 | 13 | 9 | 8 | 8 | 39 |
+| 2 | 3 | 0 | 16 | 13 | 10 | 11 | 1 | 44 |
+| 3 | 3 | 8 | 0 | 14 | 11 | 14 | 5 | 43 |
+| 4 | 3 | 8 | 11 | 0 | 13 | 15 | 6 | 42 |
+| 5 | 3 | 7 | 11 | 12 | 0 | 16 | 6 | 43 |
+| 6 | 2 | 8 | 11 | 13 | 9 | 8 | 6 | 41 |
 
 **Read across the brackets:** faster tables → cheap curve, little to no ramp;
-slower tables → 1-drops vanish, six-drops and ~8 signets dominate (ramp into
-fatties early so they compound). Lands hold ~38–42 throughout. The `0` on each
+slower tables → 1-drops vanish, six-drops and ~6 signets dominate (ramp into
+fatties early so they compound). Lands hold ~40–44 throughout. The `0` on each
 row's diagonal is Karsten's Insight #2 — you don't run drops at your commander's
-own mana value. Caveats and derivation in [`docs/methodology.md`](docs/methodology.md).
+own mana value.
+
+### The mulligan (Karsten's open problem, solved)
+
+We derived the optimal mulligan by value-function DP — the piece Karsten left as
+future work — and distilled it into a fast rule that beats his heuristic at every
+horizon:
+
+> **Keep 3–4 lands. Mull the fifth (flood). 2 lands only with a mana rock, 1 only
+> behind a Sol Ring.** Fast decks also want ≥1 non-rock play.
+
+Switching from his mulligan to this one **shifts every optimal deck toward more
+lands and fewer rocks** (mid/slow brackets: **+2–3 lands, −1–2 signets**) — a
+smarter mulligan handles flood, so the deck no longer needs rocks as
+land-consistency insurance. Caveats and full derivation in
+[`docs/methodology.md`](docs/methodology.md).
 
 ---
 
@@ -76,8 +92,12 @@ Full detail: `docs/superpowers/specs/2026-07-09-edh-mana-curve-sim-design.md`.
 
 ```bash
 uv sync
-uv run pytest                       # 37 fast tests
+uv run pytest                       # 49 fast tests
 uv run pytest -m slow               # 5 Monte Carlo / optimizer anchors (~3.5 min)
+
+uv run python sweep.py --turns-min 2 --turns-max 12   # horizon sweep + brackets
+uv run python overnight.py --hours 7                  # heavy, self-pacing, crash-safe
+uv run python -c "import mulligan"                    # value-function mulligan DP
 
 uv run python main.py validate      # criterion vs his 72.465 checkpoint
 uv run python main.py run           # optimize all 5 commander MVs -> table

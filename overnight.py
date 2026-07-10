@@ -46,13 +46,13 @@ def worker(task):
                 mv, start, base_seed=seed,
                 max_sims=CFG["max_sims"], sim_start=CFG["sim_start"],
                 sim_step=CFG["sim_step"], switch_star=10 ** 9, n_turns=t,
-                adaptive=True)
+                adaptive=True, wipes=True)
         else:
             best, mean = optimize_commander(
                 mv, restarts=1, master_seed=seed,
                 max_sims=CFG["max_sims"], sim_start=CFG["sim_start"],
                 sim_step=CFG["sim_step"], switch_star=10 ** 9, n_turns=t,
-                adaptive=True)             # use the DP-derived adaptive mulligan
+                adaptive=True, wipes=True)  # adaptive mulligan + board wipes
         return (t, mv), [int(x) for x in best], float(mean), None
     except Exception as e:                 # never let one cell kill the round
         return (t, mv), None, -1e9, repr(e)

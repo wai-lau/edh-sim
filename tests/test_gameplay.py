@@ -71,6 +71,28 @@ def test_draw_card_sink_pays_x_draws_x():
     assert hand[1] == 3                          # three drawn 1-drops sit in hand
 
 
+def test_wipe_clears_drops_keeps_rocks_lands():
+    from sim_core import maybe_wipe
+    board = blank()
+    board[1] = 2; board[3] = 1                # creatures
+    board[0] = 5; board[7] = 2; board[8] = 1  # lands + signets + sol ring
+    cs = cst(4, cast=1)
+    wstate = np.array([13], dtype=np.int64)   # 0.10*1.2^13 > 1 -> guaranteed wipe
+    maybe_wipe(board, cs, wstate, new_rng(1), 5)
+    assert board[1] == 0 and board[3] == 0    # drops wiped
+    assert board[0] == 5 and board[7] == 2 and board[8] == 1  # lands + rocks survive
+    assert cs[1] == 0                          # commander to command zone
+    assert wstate[0] == 0                      # counter reset
+
+
+def test_no_wipe_before_turn5():
+    from sim_core import maybe_wipe
+    board = blank(); board[1] = 2
+    wstate = np.array([13], dtype=np.int64)
+    maybe_wipe(board, cst(4, 1), wstate, new_rng(1), 4)   # turn 4 -> nothing
+    assert board[1] == 2 and wstate[0] == 13
+
+
 def test_commander_cast_on_curve():
     hand = blank()
     board = blank()

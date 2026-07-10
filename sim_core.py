@@ -349,7 +349,30 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
 # Whole-game + Monte Carlo.                                                    #
 # --------------------------------------------------------------------------- #
 @njit(cache=True)
-def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False):
+def maybe_wipe(board, cstate, wstate, wrng, turn):
+    """Roll a board wipe before turn `turn` (turns >=5 only). Chance =
+    0.10 * 1.2^(consecutive wipe-free turns). On a wipe: creatures (drops) die,
+    the commander returns to the command zone (recastable), rocks + lands survive,
+    and the wipe-free counter resets. Uses a separate RNG stream (wrng) so the
+    wipe schedule is shared across decks -> CRN stays intact."""
+    if turn < 5:
+        return
+    chance = 0.10
+    for _ in range(wstate[0]):
+        chance *= 1.2
+    if chance > 1.0:
+        chance = 1.0
+    if rand_below(wrng, 1000000) < int64(chance * 1000000.0):
+        for k in range(1, 7):
+            board[k] = 0                    # drops (creatures) wiped
+        cstate[1] = 0                       # commander -> command zone (recastable)
+        wstate[0] = 0
+    else:
+        wstate[0] += 1
+
+
+@njit(cache=True)
+def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False, wipes=False):
     rng = new_rng(seed)
     lib = build_library(deck_counts)
     if adaptive:
@@ -358,8 +381,12 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False):
         hand, ptr = draw_opening_hand(lib, rng)
     board = np.zeros(NCODE, dtype=np.int64)
     cstate = np.array([commander_mv, 0], dtype=np.int64)
+    wstate = np.zeros(1, dtype=np.int64)
+    wrng = new_rng(np.uint64(seed) + np.uint64(0x2545F4914F6CDD1D))
     total = 0.0
     for turn in range(1, n_turns + 1):
+        if wipes:
+            maybe_wipe(board, cstate, wstate, wrng, turn)
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
         total += score_board(board, cstate[1], cstate[0])
     return total
@@ -431,12 +458,13 @@ def _game_seed(base_seed, i):
 
 
 @njit(cache=True)
-def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7, adaptive=False):
+def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
+                  adaptive=False, wipes=False):
     mean = 0.0
     m2 = 0.0
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive)
+        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive, wipes)
         d = x - mean
         mean += d / (i + 1)
         m2 += d * (x - mean)

@@ -58,13 +58,14 @@ def _key(deck):
 
 def local_search(commander_mv, start_deck, base_seed,
                  max_sims=200_000, sim_step=1000, sim_start=10_000,
-                 switch_star=150_000, verbose=False, n_turns=7, adaptive=False):
+                 switch_star=150_000, verbose=False, n_turns=7, adaptive=False,
+                 wipes=False):
     cache = {}   # key -> (n_games, pooled_mean)
 
     def evaluate(deck, n_games, seed):
         k = _key(deck)
         m, _ = simulate_deck(np.asarray(deck, dtype=np.int64),
-                             commander_mv, n_games, seed, n_turns, adaptive)
+                             commander_mv, n_games, seed, n_turns, adaptive, wipes)
         prev = cache.get(k)
         if prev is None:
             cache[k] = (n_games, m)

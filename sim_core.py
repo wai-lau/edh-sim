@@ -36,7 +36,7 @@ def _raw_board_value(board, commander_on, commander_mv):
         total += board[k] * k
     total += board[6] * 6.2               # six-drops worth 6.2
     if commander_on:
-        total += commander_mv             # commander worth raw MV
+        total += 6.2 if commander_mv == 6 else commander_mv   # MV-6 cmdr = a 6-drop
     return total
 
 

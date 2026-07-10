@@ -71,6 +71,24 @@ def test_draw_card_sink_pays_x_draws_x():
     assert hand[1] == 3                          # three drawn 1-drops sit in hand
 
 
+def test_value_cap_holds_cards():
+    from sim_core import score_board
+    hand = blank(); hand[5] = 5                 # five 5-drops in hand
+    board = blank(); board[0] = 15              # 15 mana available
+    cs = cst(4, cast=1)                          # commander already cast
+    play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1), 10.0)  # cap=10
+    assert board[5] <= 2                         # 2 five-drops = 10 value; no more
+    assert hand[5] >= 3                          # the rest held for later
+
+
+def test_no_cap_dumps_everything():
+    hand = blank(); hand[5] = 5
+    board = blank(); board[0] = 15
+    cs = cst(4, cast=1)
+    play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1))       # default: no cap
+    assert board[5] == 3                         # 15 mana -> three 5-drops, all dumped
+
+
 def test_wipe_clears_drops_keeps_rocks_lands():
     from sim_core import maybe_wipe
     board = blank()

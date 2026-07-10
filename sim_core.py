@@ -247,23 +247,40 @@ def _has_drop(hand, cstate, mv):
 
 
 @njit(cache=True)
-def _cast_mv(hand, board, cstate, mv):
+def _val_of(mv):
+    return 6.2 if mv == 6 else float(mv)
+
+
+@njit(cache=True)
+def _cast_mv(hand, board, cstate, mv, vstate, cap):
+    """Cast a spell of value mv (real card, else commander). Respects the per-turn
+    board-value cap: if this cast would push vstate[0] over `cap`, hold the card
+    (return False). vstate[0] accumulates board value added this turn."""
     if 1 <= mv <= 6 and hand[mv] > 0:
+        v = _val_of(mv)
+        if vstate[0] + v > cap:
+            return False
         hand[mv] -= 1
         board[mv] += 1
+        vstate[0] += v
         return True
     if mv == cstate[0] and cstate[1] == 0:
+        v = float(cstate[0])
+        if vstate[0] + v > cap:
+            return False
         cstate[1] = 1
+        vstate[0] += v
         return True
     return False
 
 
 @njit(cache=True)
-def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
+def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
     # draw for the turn (always on the draw, every turn incl. T1)
     hand[lib[draw_ptr]] += 1
     draw_ptr += 1
 
+    vstate = np.zeros(1, dtype=np.float64)   # board value added this turn (cap)
     mana = mana_available(board)          # prior sources untap
 
     # 1. play a land
@@ -297,8 +314,8 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
             board[SIGNET] += 1
             mana -= 2
             mana += 1                     # mana now N-1
-            _cast_mv(hand, board, cstate, N - 1)
-            mana -= (N - 1)               # mana now 0
+            if _cast_mv(hand, board, cstate, N - 1, vstate, cap):
+                mana -= (N - 1)           # mana now 0 (else held under the cap)
 
     # 6. gap-fill: no N-drop but 2-drop + distinct (N-2)-drop
     while mana >= 3 and not _has_drop(hand, cstate, mana):
@@ -309,19 +326,20 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
             ok = hand[2] >= 1 and _has_drop(hand, cstate, n2)
         if not ok:
             break
-        _cast_mv(hand, board, cstate, 2)
-        mana -= 2
-        _cast_mv(hand, board, cstate, n2)
-        mana -= n2
+        if _cast_mv(hand, board, cstate, 2, vstate, cap):
+            mana -= 2
+        if _cast_mv(hand, board, cstate, n2, vstate, cap):
+            mana -= n2
+        else:
+            break                          # (N-2)-drop held under the cap -> stop
 
-    # 7. greedy: highest-MV castable, down from 6
+    # 7. greedy: highest-MV castable, down from 6 (skips drops that bust the cap)
     progress = True
     while progress and mana >= 1:
         progress = False
         mv = 6
         while mv >= 1:
-            if mv <= mana and _has_drop(hand, cstate, mv):
-                _cast_mv(hand, board, cstate, mv)
+            if mv <= mana and _cast_mv(hand, board, cstate, mv, vstate, cap):
                 mana -= mv
                 progress = True
                 break
@@ -372,7 +390,8 @@ def maybe_wipe(board, cstate, wstate, wrng, turn):
 
 
 @njit(cache=True)
-def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False, wipes=False):
+def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False,
+                  wipes=False, cap=1.0e9):
     rng = new_rng(seed)
     lib = build_library(deck_counts)
     if adaptive:
@@ -387,7 +406,7 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False, wi
     for turn in range(1, n_turns + 1):
         if wipes:
             maybe_wipe(board, cstate, wstate, wrng, turn)
-        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
+        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
         total += score_board(board, cstate[1], cstate[0])
     return total
 
@@ -459,12 +478,12 @@ def _game_seed(base_seed, i):
 
 @njit(cache=True)
 def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
-                  adaptive=False, wipes=False):
+                  adaptive=False, wipes=False, cap=1.0e9):
     mean = 0.0
     m2 = 0.0
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive, wipes)
+        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive, wipes, cap)
         d = x - mean
         mean += d / (i + 1)
         m2 += d * (x - mean)
@@ -473,7 +492,8 @@ def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
 
 
 @njit(cache=True)
-def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipes):
+def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipes,
+                      cap=1.0e9):
     """Play one game to max_turns, returning the CUMULATIVE criterion after each
     turn: cum[t-1] = horizon-t criterion. One game -> every horizon at once, since
     a horizon-T game is the horizon-(T+1) game truncated (same deck, same seed).
@@ -494,7 +514,7 @@ def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipe
     for turn in range(1, max_turns + 1):
         if wipes:
             maybe_wipe(board, cstate, wstate, wrng, turn)
-        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng)
+        ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
         total += score_board(board, cstate[1], cstate[0])
         cum[turn - 1] = total
     return cum
@@ -502,13 +522,13 @@ def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipe
 
 @njit(cache=True)
 def simulate_deck_cum(deck_counts, commander_mv, n_games, base_seed, max_turns,
-                      adaptive, wipes):
+                      adaptive, wipes, cap=1.0e9):
     """Mean criterion for every horizon 1..max_turns from n_games cumulative games.
     means[t-1] = expected horizon-t criterion."""
     means = np.zeros(max_turns, dtype=np.float64)
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        cum = simulate_game_cum(deck_counts, commander_mv, s, max_turns, adaptive, wipes)
+        cum = simulate_game_cum(deck_counts, commander_mv, s, max_turns, adaptive, wipes, cap)
         for t in range(max_turns):
             means[t] += (cum[t] - means[t]) / (i + 1)
     return means

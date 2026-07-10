@@ -59,13 +59,13 @@ def _key(deck):
 def local_search(commander_mv, start_deck, base_seed,
                  max_sims=200_000, sim_step=1000, sim_start=10_000,
                  switch_star=150_000, verbose=False, n_turns=7, adaptive=False,
-                 wipes=False):
+                 wipes=False, cap=1.0e9):
     cache = {}   # key -> (n_games, pooled_mean)
 
     def evaluate(deck, n_games, seed):
         k = _key(deck)
         m, _ = simulate_deck(np.asarray(deck, dtype=np.int64),
-                             commander_mv, n_games, seed, n_turns, adaptive, wipes)
+                             commander_mv, n_games, seed, n_turns, adaptive, wipes, cap)
         prev = cache.get(k)
         if prev is None:
             cache[k] = (n_games, m)
@@ -128,7 +128,7 @@ START_DECKS = {
 
 def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
                    sim_start=15_000, sim_step=15_000, adaptive=True, wipes=True,
-                   verbose=False):
+                   verbose=False, cap=1.0e9):
     """Optimize the deck for EVERY horizon at once (one commander MV), sharing
     evaluations across horizons. Each iteration: take the union of the cross
     neighborhoods of all current per-horizon bests, evaluate every unique
@@ -151,7 +151,7 @@ def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
             for nb in neighbors_cross(best[T]):
                 cands[tuple(int(x) for x in nb)] = nb
         crit = {k: simulate_deck_cum(np.asarray(d, dtype=np.int64), mv, sims, seed,
-                                     max_turn, adaptive, wipes)
+                                     max_turn, adaptive, wipes, cap)
                 for k, d in cands.items()}
         moved = False
         for T in horizons:
@@ -174,7 +174,7 @@ def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
     seed = base_seed + 987659
     out = {}
     for T in horizons:
-        m = simulate_deck_cum(best[T], mv, max_sims, seed, max_turn, adaptive, wipes)
+        m = simulate_deck_cum(best[T], mv, max_sims, seed, max_turn, adaptive, wipes, cap)
         out[T] = (best[T], float(m[T - 1]))
     return out
 

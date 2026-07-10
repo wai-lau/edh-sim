@@ -9,6 +9,54 @@ mana curve for a given commander mana value (MV).
 Reimplemented from the article's prose (not his code). Python + Numba: the whole
 per-game engine is `@njit`-compiled, ~1M games/sec on one core.
 
+---
+
+## Results — mana curves by Commander bracket
+
+Our extension beyond Karsten: game length is the biggest lever on the curve, and
+it tracks deck power. We sweep the turn horizon (T = 2–12), re-optimize at each,
+and fold the per-horizon optima into per-bracket curves via a normal weighting
+centered on each bracket's characteristic game length (σ = 2 turns). Three
+distinct center-curves cover the five official Commander brackets:
+
+Format `[1d 2d 3d 4d 5d 6d | Signets | Lands]`, **+ 1 Sol Ring** in every deck.
+"Signets" = any 2-mana rock (Signet / Talisman / Fellwar / Nature's Lore / …).
+
+### Fast tables — **Bracket 4 (Optimized) + Bracket 5 (cEDH)**, ~5-turn games
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
+| 2 | 20 | 3 | 18 | 11 | 4 | 2 | 0 | 40 |
+| 3 | 18 | 16 | 1 | 13 | 5 | 2 | 1 | 42 |
+| 4 | 18 | 16 | 13 | 0 | 7 | 3 | 2 | 39 |
+| 5 | 17 | 17 | 13 | 8 | 0 | 3 | 1 | 39 |
+| 6 | 15 | 17 | 13 | 11 | 2 | 1 | 1 | 38 |
+
+### Mid tables — **Bracket 3 (Upgraded)**, ~7-turn games
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
+| 2 | 11 | 1 | 19 | 13 | 8 | 5 | 0 | 41 |
+| 3 | 10 | 14 | 0 | 14 | 8 | 7 | 3 | 42 |
+| 4 | 10 | 13 | 13 | 0 | 10 | 8 | 4 | 40 |
+| 5 | 9 | 14 | 13 | 10 | 0 | 8 | 4 | 40 |
+| 6 | 8 | 14 | 13 | 12 | 6 | 3 | 4 | 38 |
+
+### Slow tables — **Bracket 1 (Exhibition) + Bracket 2 (Core)**, ~9-turn games
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
+| 2 | 4 | 0 | 17 | 14 | 10 | 10 | 1 | 42 |
+| 3 | 3 | 8 | 0 | 15 | 10 | 14 | 6 | 42 |
+| 4 | 3 | 7 | 11 | 0 | 13 | 15 | 8 | 41 |
+| 5 | 3 | 7 | 11 | 12 | 0 | 17 | 8 | 40 |
+| 6 | 2 | 8 | 11 | 13 | 9 | 8 | 8 | 39 |
+
+**Read across the brackets:** faster tables → cheap curve, little to no ramp;
+slower tables → 1-drops vanish, six-drops and ~8 signets dominate (ramp into
+fatties early so they compound). Lands hold ~38–42 throughout. The `0` on each
+row's diagonal is Karsten's Insight #2 — you don't run drops at your commander's
+own mana value. Caveats and derivation in [`docs/methodology.md`](docs/methodology.md).
+
+---
+
 ## Model (his, faithfully)
 
 - Deck = counts of `[1,2,3,4,5,6-drop, Signet, Land]` summing to 98, plus one

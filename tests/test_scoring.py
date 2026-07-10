@@ -33,3 +33,8 @@ def test_rocks_and_lands_excluded():
 
 def test_commander_raw_mv_not_6point2():
     assert score_board(board(), 1, 6) == 6.0
+
+
+def test_score_board_caps_at_value():
+    assert score_board(board({5: 5}), 0, 4, 10.0) == 10.0    # 25 value -> min(.,10)
+    assert score_board(board({5: 5}), 0, 4) == 25.0          # default: no cap

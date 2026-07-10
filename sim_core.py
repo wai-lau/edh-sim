@@ -89,7 +89,7 @@ def shuffle(lib, rng):
 # Criterion.                                                                   #
 # --------------------------------------------------------------------------- #
 @njit(cache=True)
-def score_board(board, commander_on, commander_mv):
+def _raw_board_value(board, commander_on, commander_mv):
     total = 0.0
     for k in range(1, 6):                 # 1..5 drops worth k
         total += board[k] * k
@@ -97,6 +97,15 @@ def score_board(board, commander_on, commander_mv):
     if commander_on:
         total += commander_mv             # commander worth raw MV
     return total
+
+
+@njit(cache=True)
+def score_board(board, commander_on, commander_mv, cap=1.0e9):
+    """Board value at turn end, capped at `cap` (default: no cap). The per-turn
+    contribution to the criterion is min(board value, cap) -- diminishing returns
+    on over-development."""
+    v = _raw_board_value(board, commander_on, commander_mv)
+    return v if v < cap else cap
 
 
 # --------------------------------------------------------------------------- #
@@ -247,29 +256,18 @@ def _has_drop(hand, cstate, mv):
 
 
 @njit(cache=True)
-def _val_of(mv):
-    return 6.2 if mv == 6 else float(mv)
-
-
-@njit(cache=True)
-def _cast_mv(hand, board, cstate, mv, vstate, cap):
-    """Cast a spell of value mv (real card, else commander). Respects the per-turn
-    board-value cap: if this cast would push vstate[0] over `cap`, hold the card
-    (return False). vstate[0] accumulates board value added this turn."""
+def _cast_mv(hand, board, cstate, mv, cap):
+    """Cast a spell of value mv (real card, else commander). Once the board's total
+    value >= cap, stop (return False) -- more scores nothing (score is capped). The
+    card that crosses the cap IS played (board was < cap before it)."""
+    if _raw_board_value(board, cstate[1], cstate[0]) >= cap:
+        return False
     if 1 <= mv <= 6 and hand[mv] > 0:
-        v = _val_of(mv)
-        if vstate[0] + v > cap:
-            return False
         hand[mv] -= 1
         board[mv] += 1
-        vstate[0] += v
         return True
     if mv == cstate[0] and cstate[1] == 0:
-        v = float(cstate[0])
-        if vstate[0] + v > cap:
-            return False
         cstate[1] = 1
-        vstate[0] += v
         return True
     return False
 
@@ -280,7 +278,6 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
     hand[lib[draw_ptr]] += 1
     draw_ptr += 1
 
-    vstate = np.zeros(1, dtype=np.float64)   # board value added this turn (cap)
     mana = mana_available(board)          # prior sources untap
 
     # 1. play a land
@@ -314,7 +311,7 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
             board[SIGNET] += 1
             mana -= 2
             mana += 1                     # mana now N-1
-            if _cast_mv(hand, board, cstate, N - 1, vstate, cap):
+            if _cast_mv(hand, board, cstate, N - 1, cap):
                 mana -= (N - 1)           # mana now 0 (else held under the cap)
 
     # 6. gap-fill: no N-drop but 2-drop + distinct (N-2)-drop
@@ -326,9 +323,9 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
             ok = hand[2] >= 1 and _has_drop(hand, cstate, n2)
         if not ok:
             break
-        if _cast_mv(hand, board, cstate, 2, vstate, cap):
+        if _cast_mv(hand, board, cstate, 2, cap):
             mana -= 2
-        if _cast_mv(hand, board, cstate, n2, vstate, cap):
+        if _cast_mv(hand, board, cstate, n2, cap):
             mana -= n2
         else:
             break                          # (N-2)-drop held under the cap -> stop
@@ -339,24 +336,38 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
         progress = False
         mv = 6
         while mv >= 1:
-            if mv <= mana and _cast_mv(hand, board, cstate, mv, vstate, cap):
+            if mv <= mana and _cast_mv(hand, board, cstate, mv, cap):
                 mana -= mv
                 progress = True
                 break
             mv -= 1
 
-    # 8. draw-card mana sink: cast whenever X>0 leftover mana (pay X, draw X);
-    #    drawn cards refill the hand for future turns. Priority over the rock.
+    # 8. draw-card mana sink (LAST): pay X leftover mana, draw X -- but only when
+    #    the hand is below 7 cards (don't over-draw a full hand; >=7 -> force-hold).
+    drew = False
     if mana >= 1 and hand[DRAW] > 0:
-        hand[DRAW] -= 1
-        x = mana
-        mana = 0
-        c = 0
-        while c < x and draw_ptr < lib.shape[0]:
-            hand[lib[draw_ptr]] += 1
-            draw_ptr += 1
-            c += 1
-    elif mana >= 2 and hand[SIGNET] > 0:   # retroactive rock (fallback sink)
+        hs = 0
+        for i in range(NCODE):
+            hs += hand[i]
+        # anything else castable by mana (ignoring the cap)? rock, commander, or a drop
+        can_play = hand[SIGNET] > 0 and mana >= 2
+        if cstate[1] == 0 and cstate[0] <= mana:
+            can_play = True
+        for mv in range(1, 7):
+            if hand[mv] > 0 and mv <= mana:
+                can_play = True
+        # play draw when hand < 7, OR hand full but nothing else is castable (dig)
+        if hs < 7 or not can_play:
+            hand[DRAW] -= 1
+            x = mana
+            mana = 0
+            c = 0
+            while c < x and draw_ptr < lib.shape[0]:
+                hand[lib[draw_ptr]] += 1
+                draw_ptr += 1
+                c += 1
+            drew = True
+    if not drew and mana >= 2 and hand[SIGNET] > 0:   # retroactive rock
         hand[SIGNET] -= 1
         board[SIGNET] += 1
 
@@ -407,7 +418,7 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False,
         if wipes:
             maybe_wipe(board, cstate, wstate, wrng, turn)
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
-        total += score_board(board, cstate[1], cstate[0])
+        total += score_board(board, cstate[1], cstate[0], cap)
     return total
 
 
@@ -515,7 +526,7 @@ def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipe
         if wipes:
             maybe_wipe(board, cstate, wstate, wrng, turn)
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
-        total += score_board(board, cstate[1], cstate[0])
+        total += score_board(board, cstate[1], cstate[0], cap)
         cum[turn - 1] = total
     return cum
 

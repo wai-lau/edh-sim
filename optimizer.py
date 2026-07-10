@@ -223,3 +223,34 @@ def optimize_commander(commander_mv, restarts=3, master_seed=0, verbose=False, *
         results.append((mean, best))
     results.sort(key=lambda t: t[0], reverse=True)
     return results[0][1], results[0][0]
+
+
+def optimize_precise(mv, n_turns, start_deck, master_seed=0, n_restarts=10,
+                     cheap_sims=35_000, sim_start=12_000, sim_step=12_000,
+                     final_sims=600_000, adaptive=True, wipes=True, cap=1.0e9):
+    """Explore cheap, select precise. Run n_restarts CHEAP local searches from
+    jittered starts (few sims each -> diverse but noisy), collect the unique
+    finalist decks, then RE-EVALUATE them all at final_sims on one shared CRN seed
+    and return the true best. This avoids the max-of-noisy-estimates bias of naive
+    best-of-N: exploration is cheap, but the final pick is high-precision."""
+    base = np.asarray(start_deck, dtype=np.int64)
+    n = base.shape[0]
+    finalists = {}
+    for r in range(n_restarts):
+        s = base.copy()
+        if r > 0:
+            s[(r * 3) % n] += 1
+            s = _fix_sum(s)
+        best, _ = local_search(mv, s, base_seed=master_seed + r * 104729,
+                               max_sims=cheap_sims, sim_start=sim_start,
+                               sim_step=sim_step, switch_star=10 ** 9,
+                               n_turns=n_turns, adaptive=adaptive, wipes=wipes, cap=cap)
+        finalists[tuple(int(x) for x in best)] = best
+    seed = master_seed + 999983                       # shared CRN seed for the showdown
+    best_deck, best_crit = base, -1e18
+    for f in finalists.values():
+        m, _ = simulate_deck(np.asarray(f, dtype=np.int64), mv, final_sims, seed,
+                             n_turns, adaptive, wipes, cap)
+        if m > best_crit:
+            best_crit, best_deck = m, np.asarray(f, dtype=np.int64)
+    return best_deck, best_crit

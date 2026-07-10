@@ -71,22 +71,38 @@ def test_draw_card_sink_pays_x_draws_x():
     assert hand[1] == 3                          # three drawn 1-drops sit in hand
 
 
-def test_value_cap_holds_cards():
-    from sim_core import score_board
-    hand = blank(); hand[5] = 5                 # five 5-drops in hand
-    board = blank(); board[0] = 15              # 15 mana available
-    cs = cst(4, cast=1)                          # commander already cast
+def test_value_cap_plays_crossing_then_stops():
+    hand = blank(); hand[6] = 5                 # five 6-drops (6.2 each)
+    board = blank(); board[0] = 20              # plenty of mana
+    cs = cst(1, cast=0)                          # MV-1 cmdr, uncast (capped out anyway)
     play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1), 10.0)  # cap=10
-    assert board[5] <= 2                         # 2 five-drops = 10 value; no more
-    assert hand[5] >= 3                          # the rest held for later
+    # board value 0 -> 6.2 (cast) -> 12.4 (cast the crossing card), now >=10 -> stop.
+    assert board[6] == 2                         # crossing card played, then stopped
+    assert hand[6] == 3
+
+
+def test_draw_held_when_hand_full():
+    hand = blank(); hand[9] = 1; hand[1] = 7    # draw + 7 one-drops (castable by mana)
+    board = blank(); board[0] = 5; board[5] = 2  # board value 10 -> at cap
+    cs = cst(4, cast=1)
+    play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1), 10.0)  # cap=10
+    assert hand[9] == 1                          # hand>=7 + a castable (cap-blocked) card -> held
+
+
+def test_draw_digs_when_hand_full_but_stuck():
+    hand = blank(); hand[9] = 1; hand[6] = 8    # draw + 8 uncastable 6-drops (only ~2 mana)
+    board = blank(); board[0] = 1
+    cs = cst(4, cast=1)
+    play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1))
+    assert hand[9] == 0                          # hand>=7 but nothing castable -> dig
 
 
 def test_no_cap_dumps_everything():
-    hand = blank(); hand[5] = 5
-    board = blank(); board[0] = 15
-    cs = cst(4, cast=1)
+    hand = blank(); hand[6] = 3
+    board = blank(); board[0] = 20
+    cs = cst(1, cast=0)
     play_turn(hand, board, cs, 8, lib_of(0), 0, new_rng(1))       # default: no cap
-    assert board[5] == 3                         # 15 mana -> three 5-drops, all dumped
+    assert board[6] == 3                         # 20 mana -> all three 6-drops dumped
 
 
 def test_wipe_clears_drops_keeps_rocks_lands():

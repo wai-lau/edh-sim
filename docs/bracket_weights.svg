@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 430" font-family="system-ui,sans-serif" font-size="13">
+<rect width="680" height="430" fill="white"/>
+<text x="62" y="26" font-size="16" font-weight="600">Turn weighting by bracket (normal, σ=2)</text>
+<line x1="62" y1="378.0" x2="470" y2="378.0" stroke="#e5e7eb"/>
+<text x="54" y="382.0" text-anchor="end" fill="#6b7280">0%</text>
+<line x1="62" y1="311.6" x2="470" y2="311.6" stroke="#e5e7eb"/>
+<text x="54" y="315.6" text-anchor="end" fill="#6b7280">5%</text>
+<line x1="62" y1="245.2" x2="470" y2="245.2" stroke="#e5e7eb"/>
+<text x="54" y="249.2" text-anchor="end" fill="#6b7280">10%</text>
+<line x1="62" y1="178.8" x2="470" y2="178.8" stroke="#e5e7eb"/>
+<text x="54" y="182.8" text-anchor="end" fill="#6b7280">15%</text>
+<line x1="62" y1="112.4" x2="470" y2="112.4" stroke="#e5e7eb"/>
+<text x="54" y="116.4" text-anchor="end" fill="#6b7280">20%</text>
+<line x1="62" y1="46.0" x2="470" y2="46.0" stroke="#e5e7eb"/>
+<text x="54" y="50.0" text-anchor="end" fill="#6b7280">25%</text>
+<text x="62.0" y="398" text-anchor="middle" fill="#6b7280">2</text>
+<text x="124.8" y="398" text-anchor="middle" fill="#6b7280">4</text>
+<text x="187.5" y="398" text-anchor="middle" fill="#6b7280">6</text>
+<text x="250.3" y="398" text-anchor="middle" fill="#6b7280">8</text>
+<text x="313.1" y="398" text-anchor="middle" fill="#6b7280">10</text>
+<text x="375.8" y="398" text-anchor="middle" fill="#6b7280">12</text>
+<text x="438.6" y="398" text-anchor="middle" fill="#6b7280">14</text>
+<text x="266" y="420" text-anchor="middle" fill="#374151">game length (turn)</text>
+<polyline points="62.0,366.3 93.4,342.1 124.8,291.8 156.2,216.9 187.5,143.6 218.9,112.4 250.3,143.6 281.7,216.9 313.1,291.8 344.5,342.1 375.8,366.3 407.2,375.0 438.6,377.4 470.0,377.9" fill="none" stroke="#2563eb" stroke-width="2.5"/>
+<line x1="488" y1="52" x2="510" y2="52" stroke="#2563eb" stroke-width="2.5"/>
+<text x="516" y="56" fill="#374151">B4 Optimized (fast) μ=7</text>
+<polyline points="62.0,377.4 93.4,375.1 124.8,366.4 156.2,342.1 187.5,291.9 218.9,217.2 250.3,144.1 281.7,112.9 313.1,144.1 344.5,217.2 375.8,291.9 407.2,342.1 438.6,366.4 470.0,375.1" fill="none" stroke="#d97706" stroke-width="2.5"/>
+<line x1="488" y1="74" x2="510" y2="74" stroke="#d97706" stroke-width="2.5"/>
+<text x="516" y="78" fill="#374151">B3 Upgraded (mid) μ=9</text>
+<polyline points="62.0,378.0 93.4,377.9 124.8,377.4 156.2,375.0 187.5,366.2 218.9,341.7 250.3,291.0 281.7,215.5 313.1,141.5 344.5,110.0 375.8,141.5 407.2,215.5 438.6,291.0 470.0,341.7" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+<line x1="488" y1="96" x2="510" y2="96" stroke="#dc2626" stroke-width="2.5"/>
+<text x="516" y="100" fill="#374151">B2 Core (slow) μ=11</text>
+</svg>

@@ -13,48 +13,67 @@ per-game engine is `@njit`-compiled, ~1M games/sec on one core.
 
 ## Results — mana curves by Commander bracket
 
-Our extension beyond Karsten: game length is the biggest lever on the curve, and
-it tracks deck power. We sweep the turn horizon (T = 2–12), re-optimize at each
-with a **DP-derived adaptive mulligan** (see below), and fold the per-horizon
-optima into per-bracket curves via a normal weighting centered on each bracket's
-characteristic game length (σ = 2 turns). Three distinct center-curves cover the
-five official Commander brackets:
+Beyond Karsten's goldfish replication, this model adds **interaction and realism**
+— board wipes, diminishing returns on over-development, and card draw — then
+sweeps the game-length horizon (T = 2–15) and folds the per-horizon optima into
+per-bracket curves via a normal weighting centered on each bracket's
+characteristic game length (from r/EDH data; σ = 2 turns):
 
-Format `[1d 2d 3d 4d 5d 6d | Signets | Lands]`, **+ 1 Sol Ring** in every deck.
-"Signets" = any 2-mana rock (Signet / Talisman / Fellwar / Nature's Lore / …).
+![Bracket turn-weighting](docs/bracket_weights.svg)
 
-### Fast tables — **Bracket 4 (Optimized) + Bracket 5 (cEDH)**, ~5-turn games
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 22 | 0 | 19 | 10 | 4 | 2 | 0 | 41 |
-| 3 | 22 | 17 | 0 | 11 | 5 | 2 | 0 | 41 |
-| 4 | 22 | 17 | 11 | 0 | 5 | 2 | 1 | 40 |
-| 5 | 20 | 19 | 12 | 5 | 0 | 2 | 1 | 39 |
-| 6 | 18 | 19 | 13 | 7 | 2 | 1 | 1 | 37 |
+Format `[1d 2d 3d 4d 5d 6d | Signets | Lands | Draw]`, **+ 1 Sol Ring** each.
+"Signets" = any 2-mana rock; "Draw" = a card-draw spell (pay X, draw X).
 
-### Mid tables — **Bracket 3 (Upgraded)**, ~7-turn games
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 11 | 0 | 19 | 12 | 8 | 5 | 0 | 43 |
-| 3 | 10 | 14 | 0 | 14 | 9 | 7 | 2 | 42 |
-| 4 | 10 | 14 | 12 | 0 | 9 | 8 | 3 | 42 |
-| 5 | 9 | 14 | 13 | 9 | 0 | 8 | 3 | 42 |
-| 6 | 8 | 15 | 13 | 10 | 5 | 3 | 3 | 41 |
+### Bracket 4 — Optimized (fast, ~7-turn games)
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
+| 2 | 14 | 0 | 19 | 11 | 7 | 4 | 0 | 42 | 1 |
+| 3 | 14 | 16 | 0 | 14 | 7 | 4 | 1 | 41 | 1 |
+| 4 | 14 | 14 | 12 | 0 | 7 | 5 | 3 | 40 | 3 |
+| 5 | 13 | 14 | 12 | 7 | 0 | 6 | 3 | 40 | 3 |
+| 6 | 12 | 15 | 13 | 9 | 4 | 1 | 3 | 38 | 3 |
 
-### Slow tables — **Bracket 1 (Exhibition) + Bracket 2 (Core)**, ~9-turn games
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|
-| 2 | 3 | 0 | 16 | 13 | 10 | 11 | 1 | 44 |
-| 3 | 3 | 8 | 0 | 14 | 11 | 14 | 5 | 43 |
-| 4 | 3 | 8 | 11 | 0 | 13 | 15 | 6 | 42 |
-| 5 | 3 | 7 | 11 | 12 | 0 | 16 | 6 | 43 |
-| 6 | 2 | 8 | 11 | 13 | 9 | 8 | 6 | 41 |
+### Bracket 3 — Upgraded (mid, ~9-turn games)
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
+| 2 | 6 | 0 | 14 | 11 | 9 | 8 | 0 | 44 | 6 |
+| 3 | 6 | 10 | 0 | 13 | 9 | 9 | 3 | 43 | 5 |
+| 4 | 6 | 8 | 9 | 0 | 10 | 11 | 5 | 40 | 9 |
+| 5 | 6 | 7 | 10 | 10 | 0 | 12 | 6 | 38 | 9 |
+| 6 | 5 | 8 | 10 | 10 | 7 | 4 | 6 | 39 | 9 |
 
-**Read across the brackets:** faster tables → cheap curve, little to no ramp;
-slower tables → 1-drops vanish, six-drops and ~6 signets dominate (ramp into
-fatties early so they compound). Lands hold ~40–44 throughout. The `0` on each
-row's diagonal is Karsten's Insight #2 — you don't run drops at your commander's
-own mana value.
+### Bracket 2 — Core (slow, ~11-turn games)
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
+| 2 | 3 | 0 | 10 | 10 | 9 | 12 | 1 | 40 | 13 |
+| 3 | 3 | 6 | 0 | 10 | 9 | 13 | 4 | 40 | 13 |
+| 4 | 2 | 4 | 7 | 0 | 10 | 15 | 6 | 38 | 16 |
+| 5 | 2 | 3 | 7 | 10 | 0 | 15 | 7 | 38 | 16 |
+| 6 | 2 | 3 | 7 | 10 | 9 | 7 | 8 | 36 | 16 |
+
+(Brackets 1 Exhibition and 5 cEDH — the extremes the model fits worst — are
+omitted. Numbers from the interim converge run; the deep run tightens the ±1s.)
+
+**Read across the brackets:** fast → cheap curve, ~0 ramp/draw. Slow → 1-drops
+vanish; six-drops + ~6–8 signets + **13–16 card-draw** dominate, i.e.
+**wipe-resilient draw-go control** that rebuilds to the development cap after each
+board wipe. **Draw switches on with game length** — 0 through turn ~7, then 7 at
+turn 9, up to ~20 by turn 12+. Lands drift 36–44 as draw/ramp substitute. The `0`
+on the diagonal is Karsten's Insight #2 (no drops at the commander's own MV),
+which holds except at MV 6 (six-drops are the 6.2-premium ceiling — nothing higher
+to reach).
+
+### The full model (beyond Karsten's goldfish)
+
+- **Board wipes** (interaction): each turn ≥5, chance 0.10 × 1.2^(wipe-free turns);
+  a wipe kills creatures + sends the commander to the command zone, but **rocks,
+  lands, and your hand survive**. This is what makes ramp and draw earn their keep.
+- **Development cap** (diminishing returns): each turn contributes `min(board
+  value, 12)` to the score — over-committing past ~12 mana of board is wasted, so
+  you hold cards (which then survive wipes).
+- **Card draw:** a pay-X-draw-X spell, played last, only when hand < 7 (or stuck).
+- **Optimizer:** explore-cheap → select-precise (many cheap restarts, then a
+  high-sim showdown of the finalists) — avoids the max-of-noisy-estimates bias.
 
 ### The mulligan (Karsten's open problem, solved)
 

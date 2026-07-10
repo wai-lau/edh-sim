@@ -1,13 +1,14 @@
-# edh-sim — replication of Karsten's Commander mana-curve experiment
+# edh-sim — optimal Commander mana curves
 
-A from-scratch reimplementation of Frank Karsten's *"What's an Optimal Mana Curve
-and Land/Ramp Count for Commander?"* (ChannelFireball, updated 2025-08-28): a
-Monte Carlo simulator of the **expected compounded mana spent over the first
-seven turns** plus a local-search optimizer that searches for the best 99-card
-mana curve for a given commander mana value (MV).
+Starts as a from-scratch reimplementation of Frank Karsten's *"What's an Optimal
+Mana Curve and Land/Ramp Count for Commander?"* (ChannelFireball, updated
+2025-08-28) — a Monte Carlo simulator of expected **compounded board mana** plus a
+local-search optimizer over the 99-card list — then **extends past his goldfish**
+with interaction (board wipes), diminishing returns (a per-turn score cap), card
+draw, a swept game-length horizon, and per-bracket curves.
 
-Reimplemented from the article's prose (not his code). Python + Numba: the whole
-per-game engine is `@njit`-compiled, ~1M games/sec on one core.
+Python + Numba (`@njit`-compiled engine). Throughput ~1M games/s for the bare
+Karsten model; **~0.2–0.5M/s** for the full model (wipes + cap + draw).
 
 ---
 
@@ -17,63 +18,75 @@ Beyond Karsten's goldfish replication, this model adds **interaction and realism
 — board wipes, diminishing returns on over-development, and card draw — then
 sweeps the game-length horizon (T = 2–15) and folds the per-horizon optima into
 per-bracket curves via a normal weighting centered on each bracket's
-characteristic game length (from r/EDH data; σ = 2 turns):
+characteristic game length (r/EDH midpoints: B4≈7, B3≈9, B2≈11 turns; **σ = 1.5**):
 
 ![Bracket turn-weighting](docs/bracket_weights.svg)
 
-Format `[1d 2d 3d 4d 5d 6d | Signets | Lands | Draw]`, **+ 1 Sol Ring** each.
-"Signets" = any 2-mana rock; "Draw" = a card-draw spell (pay X, draw X).
+Format `[1d 2d 3d 4d 5d 6d | Draw | Signets | Lands]`, **+ 1 Sol Ring** each.
+"Draw" = a card-draw spell (pay X, draw X); "Signets" = any 2-mana rock.
 
 ### Bracket 4 — Optimized (fast, ~7-turn games)
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
-| 2 | 14 | 0 | 19 | 11 | 7 | 4 | 0 | 42 | 1 |
-| 3 | 14 | 16 | 0 | 14 | 7 | 4 | 1 | 41 | 1 |
-| 4 | 14 | 14 | 12 | 0 | 7 | 5 | 3 | 40 | 3 |
-| 5 | 13 | 14 | 12 | 7 | 0 | 6 | 3 | 40 | 3 |
-| 6 | 12 | 15 | 13 | 9 | 4 | 1 | 3 | 38 | 3 |
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
+| 2 | 13 | 0 | 19 | 12 | 7 | 3 | 1 | 0 | 43 |
+| 3 | 13 | 16 | 0 | 15 | 7 | 4 | 0 | 0 | 43 |
+| 4 | 13 | 15 | 13 | 0 | 8 | 5 | 1 | 2 | 41 |
+| 5 | 12 | 15 | 13 | 8 | 0 | 5 | 2 | 2 | 41 |
+| 6 | 11 | 16 | 14 | 10 | 4 | 1 | 1 | 2 | 39 |
 
 ### Bracket 3 — Upgraded (mid, ~9-turn games)
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
-| 2 | 6 | 0 | 14 | 11 | 9 | 8 | 0 | 44 | 6 |
-| 3 | 6 | 10 | 0 | 13 | 9 | 9 | 3 | 43 | 5 |
-| 4 | 6 | 8 | 9 | 0 | 10 | 11 | 5 | 40 | 9 |
-| 5 | 6 | 7 | 10 | 10 | 0 | 12 | 6 | 38 | 9 |
-| 6 | 5 | 8 | 10 | 10 | 7 | 4 | 6 | 39 | 9 |
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
+| 2 | 5 | 0 | 14 | 12 | 10 | 9 | 5 | 0 | 43 |
+| 3 | 5 | 10 | 0 | 13 | 10 | 10 | 4 | 3 | 43 |
+| 4 | 5 | 7 | 9 | 0 | 11 | 12 | 8 | 6 | 40 |
+| 5 | 5 | 7 | 10 | 10 | 0 | 12 | 8 | 6 | 40 |
+| 6 | 5 | 7 | 10 | 11 | 8 | 4 | 8 | 6 | 39 |
 
 ### Bracket 2 — Core (slow, ~11-turn games)
-| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Sig | Land | Draw |
-|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:---:|:----:|:----:|
-| 2 | 3 | 0 | 10 | 10 | 9 | 12 | 1 | 40 | 13 |
-| 3 | 3 | 6 | 0 | 10 | 9 | 13 | 4 | 40 | 13 |
-| 4 | 2 | 4 | 7 | 0 | 10 | 15 | 6 | 38 | 16 |
-| 5 | 2 | 3 | 7 | 10 | 0 | 15 | 7 | 38 | 16 |
-| 6 | 2 | 3 | 7 | 10 | 9 | 7 | 8 | 36 | 16 |
+| Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
+|:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
+| 2 | 2 | 0 | 10 | 10 | 9 | 13 | 14 | 1 | 39 |
+| 3 | 3 | 4 | 0 | 9 | 10 | 14 | 14 | 5 | 39 |
+| 4 | 1 | 3 | 6 | 0 | 10 | 16 | 17 | 7 | 38 |
+| 5 | 2 | 2 | 6 | 10 | 0 | 16 | 17 | 8 | 37 |
+| 6 | 2 | 2 | 6 | 10 | 9 | 8 | 17 | 8 | 36 |
 
 (Brackets 1 Exhibition and 5 cEDH — the extremes the model fits worst — are
-omitted. Numbers from the interim converge run; the deep run tightens the ±1s.)
+omitted. Numbers from the interim quick pass; the deep run tightens the ±1s.)
+
+**Draw cards are cheap cantrips.** Across MVs the draw spells are cast at an
+average **X ≈ 1.9–2.2** (≈65% at X = 1) — a 1-mana leftover-mana filter to refill
+the hand, not a big draw-7. Slightly higher X for cheaper commanders.
 
 **Read across the brackets:** fast → cheap curve, ~0 ramp/draw. Slow → 1-drops
-vanish; six-drops + ~6–8 signets + **13–16 card-draw** dominate, i.e.
+vanish; six-drops + ~6–8 signets + **14–17 card-draw** dominate, i.e.
 **wipe-resilient draw-go control** that rebuilds to the development cap after each
 board wipe. **Draw switches on with game length** — 0 through turn ~7, then 7 at
 turn 9, up to ~20 by turn 12+. Lands drift 36–44 as draw/ramp substitute. The `0`
-on the diagonal is Karsten's Insight #2 (no drops at the commander's own MV),
-which holds except at MV 6 (six-drops are the 6.2-premium ceiling — nothing higher
-to reach).
+on the diagonal is Karsten's Insight #2 (no drops at the commander's own MV); it
+breaks at MV 6 because **6 is the model's ceiling** (no 7+ drops) and after each
+wipe you need a *stock* of top-end to rebuild — so you run 6-drops even though the
+MV-6 commander is one (both worth 6.2).
 
 ### The full model (beyond Karsten's goldfish)
 
-- **Board wipes** (interaction): each turn ≥5, chance 0.10 × 1.2^(wipe-free turns);
+- **Board wipes** (interaction): each turn ≥5, chance `0.10 × 1.2^(wipe-free turns)`;
   a wipe kills creatures + sends the commander to the command zone, but **rocks,
   lands, and your hand survive**. This is what makes ramp and draw earn their keep.
 - **Development cap** (diminishing returns): each turn contributes `min(board
   value, 12)` to the score — over-committing past ~12 mana of board is wasted, so
   you hold cards (which then survive wipes).
 - **Card draw:** a pay-X-draw-X spell, played last, only when hand < 7 (or stuck).
+  Mostly fires as a **1-mana leftover cantrip** (avg X ≈ 2).
 - **Optimizer:** explore-cheap → select-precise (many cheap restarts, then a
   high-sim showdown of the finalists) — avoids the max-of-noisy-estimates bias.
+
+**Chosen constants (magic numbers, not derived).** These are hand-picked and
+tunable, not fit to data: wipe **base 10% / ×1.2 escalation / start turn 5**;
+score **cap = 12**; weighting **σ = 1.5**. Six-drop / MV-6-commander = **6.2** is
+Karsten's experience-based super-linear premium (also a fudge, but justified).
+Bracket centers (7/9/11) come from r/EDH game-length data; hand-limit 7 is a rule.
 
 ### The mulligan (Karsten's open problem, solved)
 
@@ -84,50 +97,57 @@ horizon:
 > **Keep 3–4 lands. Mull the fifth (flood). 2 lands only with a mana rock, 1 only
 > behind a Sol Ring.** Fast decks also want ≥1 non-rock play.
 
-Switching from his mulligan to this one **shifts every optimal deck toward more
-lands and fewer rocks** (mid/slow brackets: **+2–3 lands, −1–2 signets**) — a
-smarter mulligan handles flood, so the deck no longer needs rocks as
-land-consistency insurance. Caveats and full derivation in
-[`docs/methodology.md`](docs/methodology.md).
+Switching from his mulligan to this one **shifted the optimal decks toward more
+lands and fewer rocks** — a smarter mulligan handles flood, so the deck no longer
+needs rocks as land-consistency insurance. (That DP was run on the *pre-wipe*
+model; the full model uses the same distilled rule but hasn't re-derived it.)
+Caveats and full derivation in [`docs/methodology.md`](docs/methodology.md).
 
 ---
 
-## Model (his, faithfully)
+## Criterion & model
 
-- Deck = counts of `[1,2,3,4,5,6-drop, Signet, Land]` summing to 98, plus one
-  Sol Ring → 99 cards. Commander = a free MV-N spell in the command zone, cast
-  once.
-- **Criterion:** at each turn end (turns 1–7) sum the mana worth of on-board
-  non-rock, non-land permanents. k-drop = k, six-drop = **6.2**, commander = raw
-  MV. Rocks and lands score 0. Averaged over random games.
-- Multiplayer rules: **free first mulligan**, **always on the draw** (draw every
-  turn incl. turn 1). London bottoming. His hand-crafted mulligan + gameplay
-  heuristics, encoded verbatim (see the spec).
-- Goldfish opponent; everything untaps every turn.
+- Deck = `[1,2,3,4,5,6-drop, Signet, Land, Draw]` (draw slot optional) summing to
+  98, plus one Sol Ring → 99 cards. Commander = a free MV-N spell in the command
+  zone (cast once, recastable after a wipe).
+- **Criterion:** at each turn end, sum the mana worth of on-board non-rock,
+  non-land permanents, **capped per turn** (`min(·, cap)`). k-drop = k,
+  six-drop = **6.2**, commander scored the same (raw MV for 1–5, **6.2 at MV6**).
+  Rocks, lands, draw spells score 0. Averaged over random games; the horizon T is
+  a parameter (Karsten's base = 7; we sweep **2–15**).
+- Multiplayer rules: **free first mulligan**, **always on the draw**, London
+  bottoming.
+- **Base = Karsten (goldfish, no cap, no draw).** The full model adds wipes + cap
+  + draw (above); the faithful base is recovered with `wipes=False`, no cap, no
+  draw slot.
 
-Full detail: `docs/superpowers/specs/2026-07-09-edh-mana-curve-sim-design.md`.
+Full detail: the spec under `docs/superpowers/specs/` and
+[`docs/methodology.md`](docs/methodology.md).
 
 ## Usage
 
 ```bash
 uv sync
-uv run pytest                       # 49 fast tests
+make test                           # 59 fast tests (uv run pytest)
+make lint                           # ruff + 500-line file cap
 uv run pytest -m slow               # 5 Monte Carlo / optimizer anchors (~3.5 min)
 
-uv run python sweep.py --turns-min 2 --turns-max 12   # horizon sweep + brackets
-uv run python overnight.py --hours 7                  # heavy, self-pacing, crash-safe
-uv run python -c "import mulligan"                    # value-function mulligan DP
+# FULL model (wipes + cap + draw), explore-cheap optimizer -> per-bracket curves:
+uv run python run_final.py --seed-json <seed.json> --restarts 16 --final-sims 1200000
 
-uv run python main.py validate      # criterion vs his 72.465 checkpoint
+# FAITHFUL Karsten base (7-turn goldfish, no wipes/cap/draw):
 uv run python main.py run           # optimize all 5 commander MVs -> table
-uv run python main.py run --mv 4    # one MV, verbose search trace
-uv run python main.py run --star    # enable star-neighborhood polishing (slow)
+uv run python main.py validate      # criterion vs his 72.465 checkpoint
+
+# analysis: horizon sweep, self-pacing overnight runner, value-function mulligan DP:
+uv run python sweep.py --turns-min 2 --turns-max 15
+uv run python -c "import mulligan"
 ```
 
-## Results
+## Faithful replication (Karsten's 7-turn goldfish base)
 
-Optimizer output vs Karsten's published table (`[1d 2d 3d 4d 5d 6d | Sig | Land]`,
-all decks + 1 Sol Ring):
+Before the extensions, the bare model reproduces Karsten's published table
+(`[1d 2d 3d 4d 5d 6d | Sig | Land]`, all decks + 1 Sol Ring):
 
 | MV | ours | Karsten |
 |----|------|---------|
@@ -172,7 +192,8 @@ all decks + 1 Sol Ring):
   cancels in the comparison — a variance-reduction fix for the noise Karsten
   flagged. Seeds refresh each iteration (no seed overfit); multiple restarts
   guard local maxima.
-- **Numba engine:** removes his multi-day runtime; a 2M-game evaluation is ~2 s.
+- **Numba engine:** removes his multi-day runtime — a 2M-game evaluation is ~2 s
+  for the bare model, ~5–10 s for the full model (wipes + cap + draw).
 
 ## Applying this to real decks
 

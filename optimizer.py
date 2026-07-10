@@ -20,10 +20,11 @@ from sim_core import simulate_deck
 def neighbors_cross(deck):
     """Single swaps: cut one card from A, add one to B. sum stays 98."""
     out = []
-    for a in range(8):
+    n = deck.shape[0]
+    for a in range(n):
         if deck[a] == 0:
             continue
-        for b in range(8):
+        for b in range(n):
             if a == b:
                 continue
             d = deck.copy()
@@ -36,7 +37,7 @@ def neighbors_cross(deck):
 def neighbors_star(deck):
     """All decks whose every category count differs by <=1 from deck, sum 98."""
     out = []
-    for delta in itertools.product((-1, 0, 1), repeat=8):
+    for delta in itertools.product((-1, 0, 1), repeat=deck.shape[0]):
         dv = np.array(delta, dtype=np.int64)
         if dv.sum() != 0:
             continue
@@ -116,12 +117,33 @@ def local_search(commander_mv, start_deck, base_seed,
 # Start decks per commander MV (sum 98). Deliberately NOT his answers, so a
 # match is the optimizer's own doing. [c1,c2,c3,c4,c5,c6, signet, land].
 START_DECKS = {
-    2: np.array([10, 10, 12, 10, 6, 2, 0, 48], dtype=np.int64),
-    3: np.array([8, 12, 10, 10, 6, 3, 4, 45], dtype=np.int64),
-    4: np.array([6, 12, 10, 10, 8, 4, 6, 42], dtype=np.int64),
-    5: np.array([6, 12, 10, 10, 8, 5, 8, 39], dtype=np.int64),
-    6: np.array([6, 12, 10, 12, 8, 3, 9, 38], dtype=np.int64),
+    2: np.array([10, 10, 12, 10, 6, 2, 0, 48, 0], dtype=np.int64),
+    3: np.array([8, 12, 10, 10, 6, 3, 4, 45, 0], dtype=np.int64),
+    4: np.array([6, 12, 10, 10, 8, 4, 6, 42, 0], dtype=np.int64),
+    5: np.array([6, 12, 10, 10, 8, 5, 8, 39, 0], dtype=np.int64),
+    6: np.array([6, 12, 10, 12, 8, 3, 9, 38, 0], dtype=np.int64),
 }
+
+
+def deck_with_draw(base8, Y):
+    """Add Y draw cards to an 8-slot deck [1d..6d, sig, land] (sums 98, +Sol Ring),
+    renormalizing the other categories by 99/(99+Y), rounding, then round-robin
+    over CMC 1..6 to land exactly on 98 (+ Sol Ring = 99). Returns a 9-slot vector
+    [1d..6d, sig, land, draw]."""
+    f = 99.0 / (99.0 + Y)
+    v = [int(round(base8[i] * f)) for i in range(8)] + [int(Y)]
+    s = sum(v)
+    j = 0
+    while s != 98:
+        idx = j % 6                       # cycle CMC 1..6 (indices 0..5)
+        if s < 98:
+            v[idx] += 1
+            s += 1
+        elif v[idx] > 0:
+            v[idx] -= 1
+            s -= 1
+        j += 1
+    return np.array(v, dtype=np.int64)
 
 
 def _fix_sum(deck):

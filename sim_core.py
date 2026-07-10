@@ -14,6 +14,8 @@ from numba import njit, int64
 LAND = 0
 SIGNET = 7
 SOLRING = 8
+DRAW = 9        # "draw card": pay X mana, draw X cards; scores 0, resolves away
+NCODE = 10      # hands/boards are length-NCODE count vectors (codes 0..9)
 
 
 # --------------------------------------------------------------------------- #
@@ -63,6 +65,10 @@ def build_library(deck_counts):
         idx += 1
     for _ in range(deck_counts[7]):       # lands
         lib[idx] = LAND
+        idx += 1
+    n_draw = deck_counts[8] if deck_counts.shape[0] > 8 else 0   # draw cards (opt.)
+    for _ in range(n_draw):
+        lib[idx] = DRAW
         idx += 1
     lib[idx] = SOLRING                    # the one Sol Ring
     idx += 1
@@ -189,7 +195,7 @@ def mulligan_keep_adaptive(hand, attempt, n_turns):
 
 @njit(cache=True)
 def _hand_from(lib):
-    h = np.zeros(9, dtype=np.int64)
+    h = np.zeros(NCODE, dtype=np.int64)
     for i in range(7):
         h[lib[i]] += 1
     return h
@@ -321,8 +327,18 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng):
                 break
             mv -= 1
 
-    # 8. retroactive rock if mana left over
-    if mana >= 2 and hand[SIGNET] > 0:
+    # 8. draw-card mana sink: cast whenever X>0 leftover mana (pay X, draw X);
+    #    drawn cards refill the hand for future turns. Priority over the rock.
+    if mana >= 1 and hand[DRAW] > 0:
+        hand[DRAW] -= 1
+        x = mana
+        mana = 0
+        c = 0
+        while c < x and draw_ptr < lib.shape[0]:
+            hand[lib[draw_ptr]] += 1
+            draw_ptr += 1
+            c += 1
+    elif mana >= 2 and hand[SIGNET] > 0:   # retroactive rock (fallback sink)
         hand[SIGNET] -= 1
         board[SIGNET] += 1
 
@@ -340,7 +356,7 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False):
         hand, ptr = draw_opening_hand_adaptive(lib, rng, n_turns)
     else:
         hand, ptr = draw_opening_hand(lib, rng)
-    board = np.zeros(9, dtype=np.int64)
+    board = np.zeros(NCODE, dtype=np.int64)
     cstate = np.array([commander_mv, 0], dtype=np.int64)
     total = 0.0
     for turn in range(1, n_turns + 1):
@@ -352,23 +368,24 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False):
 @njit(cache=True)
 def _deck9(deck_counts):
     """Convert deck [c1..c6, sig, land] (len 8) to a length-9 code vector."""
-    d = np.zeros(9, dtype=np.int64)
+    d = np.zeros(NCODE, dtype=np.int64)
     d[LAND] = deck_counts[7]
     for k in range(1, 7):
         d[k] = deck_counts[k - 1]
     d[SIGNET] = deck_counts[6]
     d[SOLRING] = 1
+    d[DRAW] = deck_counts[8] if deck_counts.shape[0] > 8 else 0
     return d
 
 
 @njit(cache=True)
 def build_library_codes(counts9):
     n = 0
-    for i in range(9):
+    for i in range(NCODE):
         n += counts9[i]
     lib = np.empty(n, dtype=np.int8)
     idx = 0
-    for code in range(9):
+    for code in range(NCODE):
         for _ in range(counts9[code]):
             lib[idx] = code
             idx += 1
@@ -384,7 +401,7 @@ def simulate_from_hand(deck_counts, kept_hand, removed, commander_mv, seed, n_tu
     lib = build_library_codes(remaining)
     shuffle(lib, rng)
     hand = kept_hand.copy()
-    board = np.zeros(9, dtype=np.int64)
+    board = np.zeros(NCODE, dtype=np.int64)
     cstate = np.array([commander_mv, 0], dtype=np.int64)
     total = 0.0
     ptr = 0

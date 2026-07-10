@@ -2,11 +2,11 @@ import numpy as np
 from sim_core import simulate_from_hand, vkeep
 
 DECK4 = np.array([7, 19, 16, 0, 10, 5, 0, 41], dtype=np.int64)  # 4-mv, T7 optimum
-Z = np.zeros(9, dtype=np.int64)
+Z = np.zeros(10, dtype=np.int64)
 
 
 def h9(d):  # hand by code {code: n}
-    a = np.zeros(9, dtype=np.int64)
+    a = np.zeros(10, dtype=np.int64)
     for c, n in d.items():
         a[c] = n
     return a

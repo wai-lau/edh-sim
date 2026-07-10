@@ -3,7 +3,7 @@ from sim_core import play_turn, new_rng
 
 
 def blank():
-    return np.zeros(9, dtype=np.int64)
+    return np.zeros(10, dtype=np.int64)
 
 
 def cst(mv, cast=0):
@@ -55,6 +55,20 @@ def test_greedy_highest_first():
     board[0] = 6
     play_turn(hand, board, cst(3, cast=1), 6, lib_of(0), 0, new_rng(1))
     assert board[6] == 1
+
+
+def test_draw_card_sink_pays_x_draws_x():
+    # only a draw card in hand, 4 lands in play, library of 1-drops.
+    hand = blank(); hand[9] = 1                 # DRAW=9
+    board = blank(); board[0] = 4               # N=4
+    cs = cst(4, cast=1)                          # commander already cast
+    lib = np.array([1] * 12, dtype=np.int8)      # all 1-drops
+    ptr = play_turn(hand, board, cs, 5, lib, 0, new_rng(1))
+    assert hand[9] == 0                          # draw card was cast
+    # turn-draw (1) casts a 1-drop (mana 4->3); draw sink pays X=3 -> draws 3 more
+    assert board[1] == 1                         # the drawn 1-drop got played
+    assert ptr == 4                              # 1 turn-draw + 3 from pay-3-draw-3
+    assert hand[1] == 3                          # three drawn 1-drops sit in hand
 
 
 def test_commander_cast_on_curve():

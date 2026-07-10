@@ -51,12 +51,13 @@ def reweight(best_deck, turns, mu, sigma):
     z = sum(w.values())
     out = {}
     for mv in MVS:
-        acc = [0.0] * 8
+        n = len(best_deck[(TURNS[0], mv)])          # 8 (no draw) or 9 (with draw)
+        acc = [0.0] * n
         for t in turns:
-            for k in range(8):
+            for k in range(n):
                 acc[k] += (w[t] / z) * best_deck[(t, mv)][k]
         r = [int(round(x)) for x in acc]
-        r[7] += 98 - sum(r)
+        r[7] += 98 - sum(r)                          # land absorbs rounding residual
         out[mv] = r
     return out
 
@@ -119,23 +120,25 @@ def main():
     print(f"\nDONE: {rnd} rounds in {el/3600:.2f}h -> {OUT_JSON}", flush=True)
 
     # final human-readable dump
-    print("\nBEST per-horizon optima  [1d 2d 3d 4d 5d 6d | Sig | Land | crit]")
+    print("\nBEST per-horizon optima  [1d 2d 3d 4d 5d 6d | Sig | Land | Draw | crit]")
     for t in TURNS:
         print(f"### T={t}")
         for mv in MVS:
             c = best_deck.get((t, mv))
             if c:
+                dr = c[8] if len(c) > 8 else 0
                 print(f" MV{mv} | {c[0]:>2} {c[1]:>2} {c[2]:>2} {c[3]:>2} {c[4]:>2} "
-                      f"{c[5]:>2} | {c[6]:>2} | {c[7]:>2} | {best_crit[(t, mv)]:.3f}")
+                      f"{c[5]:>2} | {c[6]:>2} | {c[7]:>2} | {dr:>2} | {best_crit[(t, mv)]:.3f}")
     if all((t, mv) in best_deck for t in TURNS for mv in MVS):
-        print("\nBRACKET curves (sigma=2.0):")
+        print("\nBRACKET curves (sigma=2.0)  [.. | Sig | Land | Draw]:")
         for mu, label in CENTERS.items():
             bd = reweight(best_deck, TURNS, mu, 2.0)
             print(f"### mu={mu} {label}")
             for mv in MVS:
                 c = bd[mv]
+                dr = c[8] if len(c) > 8 else 0
                 print(f" MV{mv} | {c[0]:>2} {c[1]:>2} {c[2]:>2} {c[3]:>2} {c[4]:>2} "
-                      f"{c[5]:>2} | {c[6]:>2} | {c[7]:>2}")
+                      f"{c[5]:>2} | {c[6]:>2} | {c[7]:>2} | {dr:>2}")
 
 
 if __name__ == "__main__":

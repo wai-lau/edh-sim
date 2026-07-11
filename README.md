@@ -70,6 +70,12 @@ omitted.)*
 - **Draw cards are cheap cantrips:** cast at an average **X ≈ 2.3** (~55–59% at
   X = 1) — a 1-mana leftover-mana filter, with a thin tail of big post-wipe digs.
 
+> ⚠️ **Draw is under-counted in the high brackets.** The fast tables (Optimized /
+> cEDH) show ~0 draw, but that's a model artifact: the compounded-board-mana
+> criterion has no notion of **digging for answers or combo pieces to win** —
+> which is the whole reason high-power decks run heavy card selection. Real
+> Optimized/cEDH decks want far more draw than the board-mana metric rewards.
+
 **Cap sensitivity — the biggest knob.** The per-turn development cap governs how
 much draw and ramp you want: **lower cap → more draw + ramp** (harsh diminishing
 returns make efficient post-wipe rebuild matter, so a draw/ramp engine pays off);
@@ -121,12 +127,12 @@ These are hand-picked and tunable, not derived:
 
 ---
 
-## The mulligan (Karsten's open problem, solved)
+## The mulligan (attacking Karsten's open problem)
 
-Karsten flagged the optimal mulligan as future work. We derived it by
+Karsten flagged the optimal mulligan as future work. We attack it with
 **value-function dynamic programming** (keep hand *h* iff its simulated value ≥ the
-value of mulliganing again; solved by backward induction), then distilled it into
-a fast rule:
+value of mulliganing again; backward induction), then distill the result into a
+fast rule:
 
 > **Keep 3–4 lands. Mull the fifth (flood).** 2 lands only with a mana rock, 1
 > only behind a Sol Ring. Fast decks also want ≥ 1 non-rock play.
@@ -134,8 +140,10 @@ a fast rule:
 This *tightened* the classic "keep 3–5 lands" (5-land hands flood), and on the
 pre-wipe model it beat his heuristic at every horizon, shifting decks toward more
 lands / fewer rocks (a smarter mulligan handles flood, so rocks aren't needed as
-land-consistency insurance). The full model reuses the same distilled rule.
-Full derivation: [`docs/methodology.md`](docs/methodology.md).
+land-consistency insurance). **Not fully solved:** the DP is optimal only for the
+*simplified* value function; the distilled rule above is a lossy approximation of
+it and hasn't been re-derived for the full (wipe/cap/draw) model — which reuses
+the same rule. Full derivation: [`docs/methodology.md`](docs/methodology.md).
 
 ---
 

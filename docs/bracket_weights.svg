@@ -1,35 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 430" font-family="system-ui,sans-serif" font-size="13">
-<rect width="680" height="430" fill="white"/>
-<text x="62" y="26" font-size="16" font-weight="600">Turn weighting by bracket (normal, σ=1.5)</text>
-<line x1="62" y1="378.0" x2="470" y2="378.0" stroke="#e5e7eb"/>
-<text x="54" y="382.0" text-anchor="end" fill="#6b7280">0%</text>
-<line x1="62" y1="322.7" x2="470" y2="322.7" stroke="#e5e7eb"/>
-<text x="54" y="326.7" text-anchor="end" fill="#6b7280">5%</text>
-<line x1="62" y1="267.3" x2="470" y2="267.3" stroke="#e5e7eb"/>
-<text x="54" y="271.3" text-anchor="end" fill="#6b7280">10%</text>
-<line x1="62" y1="212.0" x2="470" y2="212.0" stroke="#e5e7eb"/>
-<text x="54" y="216.0" text-anchor="end" fill="#6b7280">15%</text>
-<line x1="62" y1="156.7" x2="470" y2="156.7" stroke="#e5e7eb"/>
-<text x="54" y="160.7" text-anchor="end" fill="#6b7280">20%</text>
-<line x1="62" y1="101.3" x2="470" y2="101.3" stroke="#e5e7eb"/>
-<text x="54" y="105.3" text-anchor="end" fill="#6b7280">25%</text>
-<line x1="62" y1="46.0" x2="470" y2="46.0" stroke="#e5e7eb"/>
-<text x="54" y="50.0" text-anchor="end" fill="#6b7280">30%</text>
-<text x="62.0" y="398" text-anchor="middle" fill="#6b7280">2</text>
-<text x="124.8" y="398" text-anchor="middle" fill="#6b7280">4</text>
-<text x="187.5" y="398" text-anchor="middle" fill="#6b7280">6</text>
-<text x="250.3" y="398" text-anchor="middle" fill="#6b7280">8</text>
-<text x="313.1" y="398" text-anchor="middle" fill="#6b7280">10</text>
-<text x="375.8" y="398" text-anchor="middle" fill="#6b7280">12</text>
-<text x="438.6" y="398" text-anchor="middle" fill="#6b7280">14</text>
-<text x="266" y="420" text-anchor="middle" fill="#374151">game length (turn)</text>
-<polyline points="62.0,376.9 93.4,369.6 124.8,338.2 156.2,257.0 187.5,142.3 218.9,83.6 250.3,142.3 281.7,257.0 313.1,338.2 344.5,369.6 375.8,376.9 407.2,377.9 438.6,378.0 470.0,378.0" fill="none" stroke="#2563eb" stroke-width="2.5"/>
-<line x1="488" y1="52" x2="510" y2="52" stroke="#2563eb" stroke-width="2.5"/>
-<text x="516" y="56" fill="#374151">B4 Optimized (fast) μ=7</text>
-<polyline points="62.0,378.0 93.4,377.9 124.8,376.9 156.2,369.6 187.5,338.2 218.9,257.0 250.3,142.3 281.7,83.7 313.1,142.3 344.5,257.0 375.8,338.2 407.2,369.6 438.6,376.9 470.0,377.9" fill="none" stroke="#d97706" stroke-width="2.5"/>
-<line x1="488" y1="74" x2="510" y2="74" stroke="#d97706" stroke-width="2.5"/>
-<text x="516" y="78" fill="#374151">B3 Upgraded (mid) μ=9</text>
-<polyline points="62.0,378.0 93.4,378.0 124.8,378.0 156.2,377.9 187.5,376.9 218.9,369.6 250.3,338.1 281.7,256.9 313.1,142.1 344.5,83.3 375.8,142.1 407.2,256.9 438.6,338.1 470.0,369.6" fill="none" stroke="#dc2626" stroke-width="2.5"/>
-<line x1="488" y1="96" x2="510" y2="96" stroke="#dc2626" stroke-width="2.5"/>
-<text x="516" y="100" fill="#374151">B2 Core (slow) μ=11</text>
+<text x="62" y="26" font-size="16" font-weight="600" fill="#808080">Turn weighting by bracket (normal, σ=1.5)</text>
+<line x1="62" y1="378.0" x2="470" y2="378.0" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="382.0" text-anchor="end" fill="#808080">0%</text>
+<line x1="62" y1="322.7" x2="470" y2="322.7" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="326.7" text-anchor="end" fill="#808080">5%</text>
+<line x1="62" y1="267.3" x2="470" y2="267.3" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="271.3" text-anchor="end" fill="#808080">10%</text>
+<line x1="62" y1="212.0" x2="470" y2="212.0" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="216.0" text-anchor="end" fill="#808080">15%</text>
+<line x1="62" y1="156.7" x2="470" y2="156.7" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="160.7" text-anchor="end" fill="#808080">20%</text>
+<line x1="62" y1="101.3" x2="470" y2="101.3" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="105.3" text-anchor="end" fill="#808080">25%</text>
+<line x1="62" y1="46.0" x2="470" y2="46.0" stroke="#808080" stroke-opacity="0.3"/>
+<text x="54" y="50.0" text-anchor="end" fill="#808080">30%</text>
+<text x="62.0" y="398" text-anchor="middle" fill="#808080">2</text>
+<text x="124.8" y="398" text-anchor="middle" fill="#808080">4</text>
+<text x="187.5" y="398" text-anchor="middle" fill="#808080">6</text>
+<text x="250.3" y="398" text-anchor="middle" fill="#808080">8</text>
+<text x="313.1" y="398" text-anchor="middle" fill="#808080">10</text>
+<text x="375.8" y="398" text-anchor="middle" fill="#808080">12</text>
+<text x="438.6" y="398" text-anchor="middle" fill="#808080">14</text>
+<text x="266" y="420" text-anchor="middle" fill="#808080">game length (turn)</text>
+<polyline points="62.0,376.9 93.4,369.6 124.8,338.2 156.2,257.0 187.5,142.3 218.9,83.6 250.3,142.3 281.7,257.0 313.1,338.2 344.5,369.6 375.8,376.9 407.2,377.9 438.6,378.0 470.0,378.0" fill="none" stroke="#808080" stroke-width="2.5"/>
+<line x1="488" y1="52" x2="510" y2="52" stroke="#808080" stroke-width="2.5"/>
+<text x="516" y="56" fill="#808080">B4 Optimized (fast) μ=7</text>
+<polyline points="62.0,378.0 93.4,377.9 124.8,376.9 156.2,369.6 187.5,338.2 218.9,257.0 250.3,142.3 281.7,83.7 313.1,142.3 344.5,257.0 375.8,338.2 407.2,369.6 438.6,376.9 470.0,377.9" fill="none" stroke="#808080" stroke-width="2.5" stroke-dasharray="7 4"/>
+<line x1="488" y1="74" x2="510" y2="74" stroke="#808080" stroke-width="2.5" stroke-dasharray="7 4"/>
+<text x="516" y="78" fill="#808080">B3 Upgraded (mid) μ=9</text>
+<polyline points="62.0,378.0 93.4,378.0 124.8,378.0 156.2,377.9 187.5,376.9 218.9,369.6 250.3,338.1 281.7,256.9 313.1,142.1 344.5,83.3 375.8,142.1 407.2,256.9 438.6,338.1 470.0,369.6" fill="none" stroke="#808080" stroke-width="2.5" stroke-dasharray="2 4"/>
+<line x1="488" y1="96" x2="510" y2="96" stroke="#808080" stroke-width="2.5" stroke-dasharray="2 4"/>
+<text x="516" y="100" fill="#808080">B2 Core (slow) μ=11</text>
 </svg>

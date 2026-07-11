@@ -7,10 +7,10 @@ import pathlib
 
 TURNS = list(range(2, 16))
 SIGMA = 1.5     # pointier weighting -> fewer far-tail games per bracket
-BRACKETS = [                       # (center, label, colour)
-    (7, "B4 Optimized (fast)", "#2563eb"),
-    (9, "B3 Upgraded (mid)", "#d97706"),
-    (11, "B2 Core (slow)", "#dc2626"),
+BRACKETS = [                       # (center, label, dash) -- all grey, dash-coded
+    (7, "B4 Optimized (fast)", ""),
+    (9, "B3 Upgraded (mid)", "7 4"),
+    (11, "B2 Core (slow)", "2 4"),
 ]
 
 W, H = 680, 430
@@ -36,10 +36,11 @@ def py(v):
     return T + PH - (v / ymax) * PH
 
 
+GRID, TXT = "#808080", "#808080"          # mid-gray: readable on light + dark
 s = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
      f'font-family="system-ui,sans-serif" font-size="13">']
-s.append(f'<rect width="{W}" height="{H}" fill="white"/>')
-s.append(f'<text x="{L}" y="26" font-size="16" font-weight="600">'
+# transparent background (no rect)
+s.append(f'<text x="{L}" y="26" font-size="16" font-weight="600" fill="{TXT}">'
          f'Turn weighting by bracket (normal, σ={SIGMA:g})</text>')
 
 # y gridlines + labels
@@ -47,28 +48,29 @@ yt = 0.0
 while yt <= ymax + 1e-9:
     y = py(yt)
     s.append(f'<line x1="{L}" y1="{y:.1f}" x2="{L+PW}" y2="{y:.1f}" '
-             f'stroke="#e5e7eb"/>')
-    s.append(f'<text x="{L-8}" y="{y+4:.1f}" text-anchor="end" fill="#6b7280">'
+             f'stroke="{GRID}" stroke-opacity="0.3"/>')
+    s.append(f'<text x="{L-8}" y="{y+4:.1f}" text-anchor="end" fill="{TXT}">'
              f'{yt*100:.0f}%</text>')
     yt += 0.05
 # x ticks + labels
 for t in TURNS:
     if t % 2 == 0:
         s.append(f'<text x="{px(t):.1f}" y="{T+PH+20}" text-anchor="middle" '
-                 f'fill="#6b7280">{t}</text>')
+                 f'fill="{TXT}">{t}</text>')
 s.append(f'<text x="{L+PW/2:.0f}" y="{H-10}" text-anchor="middle" '
-         f'fill="#374151">game length (turn)</text>')
+         f'fill="{TXT}">game length (turn)</text>')
 
-# curves + legend
-for i, (mu, label, col) in enumerate(BRACKETS):
+# curves + legend (all grey; brackets differ by dash pattern)
+for i, (mu, label, dash) in enumerate(BRACKETS):
     w = weights(mu)
+    da = f' stroke-dasharray="{dash}"' if dash else ""
     pts = " ".join(f"{px(t):.1f},{py(w[t]):.1f}" for t in TURNS)
-    s.append(f'<polyline points="{pts}" fill="none" stroke="{col}" '
-             f'stroke-width="2.5"/>')
+    s.append(f'<polyline points="{pts}" fill="none" stroke="{TXT}" '
+             f'stroke-width="2.5"{da}/>')
     ly = T + 6 + i * 22
     s.append(f'<line x1="{L+PW+18}" y1="{ly}" x2="{L+PW+40}" y2="{ly}" '
-             f'stroke="{col}" stroke-width="2.5"/>')
-    s.append(f'<text x="{L+PW+46}" y="{ly+4}" fill="#374151">'
+             f'stroke="{TXT}" stroke-width="2.5"{da}/>')
+    s.append(f'<text x="{L+PW+46}" y="{ly+4}" fill="{TXT}">'
              f'{label} μ={mu}</text>')
 s.append('</svg>')
 

@@ -21,7 +21,7 @@ into **per-bracket curves** via a normal weighting centered on each bracket's
 characteristic game length (r/EDH midpoints: B4 ≈ 7, B3 ≈ 9, B2 ≈ 11 turns; **σ =
 1.5**):
 
-![Bracket turn-weighting](docs/bracket_weights.svg)
+<img src="docs/bracket_weights.svg" alt="Bracket turn-weighting" width="460">
 
 Format `[1d 2d 3d 4d 5d 6d | Draw | Signets | Lands]`, **+ 1 Sol Ring** in every
 deck (99 cards). "Draw" = a card-draw spell (pay X, draw X); "Signets" = any

@@ -2,8 +2,8 @@
 
 A Monte Carlo simulator + local-search optimizer for **Magic: the Gathering
 Commander** mana curves. It starts as a faithful reimplementation of Frank
-Karsten's *"What's an Optimal Mana Curve and Land/Ramp Count for Commander?"*
-(ChannelFireball, 2025) — reproducing his published table from the article's prose
+Karsten's [*"What's an Optimal Mana Curve and Land/Ramp Count for Commander?"*
+(ChannelFireball, 2025)](https://www.tcgplayer.com/content/article/What-s-an-Optimal-Mana-Curve-and-Land-Ramp-Count-for-Commander) — reproducing his published table from the article's prose
 — then **extends past his goldfish** with the things that actually shape a
 Commander deck: **interaction (board wipes), diminishing returns (a per-turn
 development cap), card draw, a swept game-length horizon, and per-bracket curves.**

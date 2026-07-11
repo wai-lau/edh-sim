@@ -5,8 +5,9 @@ Commander** mana curves. It starts as a faithful reimplementation of Frank
 Karsten's [*"What's an Optimal Mana Curve and Land/Ramp Count for Commander?"*
 (ChannelFireball, 2025)](https://www.tcgplayer.com/content/article/What-s-an-Optimal-Mana-Curve-and-Land-Ramp-Count-for-Commander) — reproducing his published table from the article's prose
 — then **extends past his goldfish** with the things that actually shape a
-Commander deck: **interaction (board wipes), diminishing returns (a per-turn
-development cap), card draw, a swept game-length horizon, and per-bracket curves.**
+Commander deck: **interaction (board wipes), a "lethal board" cap (enough on board
+to win if it sticks), card draw, a swept game-length horizon, and per-bracket
+curves.**
 
 The whole per-game engine is `@njit`-compiled (Numba). Throughput ~1M games/s for
 the bare Karsten model, ~0.2–0.5M/s for the full model (wipes + cap + draw).
@@ -104,9 +105,13 @@ returns make efficient post-wipe rebuild matter, so a draw/ramp engine pays off)
   turns)`. A wipe kills creatures and sends the commander to the command zone, but
   **rocks, lands, and your hand survive**. This is what makes ramp and draw earn
   their keep — you rebuild from the hand that survived.
-- **Development cap** (diminishing returns): the per-turn `min(board value, 15)`
-  above. Over-committing past ~15 mana of board is wasted, so you **hold cards**
-  (which then survive the next wipe).
+- **Development cap** — *enough board to win if it sticks*: each turn contributes
+  `min(board value, 15)`. The idea: ~15 mana of board is enough to close the game
+  **if it survives a few turns**, so piling on more board does nothing. Instead you
+  **hold the rest of your hand** — for interaction, protection, and redevelopment
+  after a wipe (and those held cards survive the wipe). It's why the slow brackets
+  want a draw engine but a *low* creature count: get to a lethal board, then keep
+  cards to defend and rebuild it, not overextend into the next Wrath.
 - **Card draw:** a pay-X-draw-X spell, played *last*, only when your hand is below
   7 cards (or you're stuck with nothing else castable — a rare dig).
 - **Optimizer:** *explore-cheap → select-precise* — many cheap local-search

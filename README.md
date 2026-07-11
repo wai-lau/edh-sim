@@ -28,46 +28,50 @@ Format `[1d 2d 3d 4d 5d 6d | Draw | Signets | Lands]`, **+ 1 Sol Ring** each.
 ### Bracket 4 — Optimized (fast, ~7-turn games)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 13 | 0 | 19 | 12 | 7 | 3 | 1 | 0 | 43 |
-| 3 | 13 | 16 | 0 | 15 | 7 | 4 | 0 | 0 | 43 |
-| 4 | 13 | 15 | 13 | 0 | 8 | 5 | 1 | 2 | 41 |
-| 5 | 12 | 15 | 13 | 8 | 0 | 5 | 2 | 2 | 41 |
-| 6 | 11 | 16 | 14 | 10 | 4 | 1 | 1 | 2 | 39 |
+| 2 | 16 | 0 | 22 | 13 | 5 | 0 | 0 | 0 | 42 |
+| 3 | 16 | 20 | 0 | 15 | 6 | 0 | 0 | 0 | 41 |
+| 4 | 18 | 19 | 15 | 0 | 5 | 0 | 1 | 0 | 40 |
+| 5 | 16 | 19 | 14 | 6 | 0 | 1 | 1 | 0 | 41 |
+| 6 | 13 | 19 | 15 | 9 | 1 | 0 | 0 | 1 | 40 |
 
 ### Bracket 3 — Upgraded (mid, ~9-turn games)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 5 | 0 | 14 | 12 | 10 | 9 | 5 | 0 | 43 |
-| 3 | 5 | 10 | 0 | 13 | 10 | 10 | 4 | 3 | 43 |
-| 4 | 5 | 7 | 9 | 0 | 11 | 12 | 8 | 6 | 40 |
-| 5 | 5 | 7 | 10 | 10 | 0 | 12 | 8 | 6 | 40 |
-| 6 | 5 | 7 | 10 | 11 | 8 | 4 | 8 | 6 | 39 |
+| 2 | 11 | 0 | 20 | 14 | 8 | 2 | 3 | 0 | 40 |
+| 3 | 11 | 17 | 0 | 15 | 8 | 3 | 4 | 0 | 40 |
+| 4 | 12 | 16 | 13 | 0 | 9 | 3 | 5 | 1 | 39 |
+| 5 | 12 | 15 | 12 | 9 | 0 | 3 | 4 | 2 | 41 |
+| 6 | 10 | 13 | 13 | 11 | 4 | 0 | 2 | 4 | 41 |
 
 ### Bracket 2 — Core (slow, ~11-turn games)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 2 | 0 | 10 | 10 | 9 | 13 | 14 | 1 | 39 |
-| 3 | 3 | 4 | 0 | 9 | 10 | 14 | 14 | 5 | 39 |
-| 4 | 1 | 3 | 6 | 0 | 10 | 16 | 17 | 7 | 38 |
-| 5 | 2 | 2 | 6 | 10 | 0 | 16 | 17 | 8 | 37 |
-| 6 | 2 | 2 | 6 | 10 | 9 | 8 | 17 | 8 | 36 |
+| 2 | 7 | 0 | 17 | 13 | 8 | 5 | 10 | 0 | 38 |
+| 3 | 7 | 12 | 0 | 13 | 8 | 6 | 10 | 1 | 41 |
+| 4 | 7 | 12 | 11 | 0 | 9 | 6 | 11 | 2 | 40 |
+| 5 | 8 | 12 | 10 | 10 | 0 | 6 | 10 | 4 | 38 |
+| 6 | 7 | 8 | 11 | 11 | 7 | 0 | 8 | 7 | 39 |
 
-(Brackets 1 Exhibition and 5 cEDH — the extremes the model fits worst — are
-omitted. Numbers from the interim quick pass; the deep run tightens the ±1s.)
+(Deep converged run: 16 restarts, 1.2M-game final showdown, **cap = 15**.
+Brackets 1 Exhibition and 5 cEDH — the extremes the model fits worst — are omitted.)
 
-**Draw cards are cheap cantrips.** Across MVs the draw spells are cast at an
-average **X ≈ 1.9–2.2** (≈65% at X = 1) — a 1-mana leftover-mana filter to refill
-the hand, not a big draw-7. Slightly higher X for cheaper commanders.
+**Draw cards are cheap cantrips.** The draw spells are cast at an average
+**X ≈ 2.3** (≈55–59% at X = 1): a 1-mana leftover-mana filter to refill the hand,
+with a thin tail of big post-wipe digs (X = 6–8), not a scheduled draw-7.
 
-**Read across the brackets:** fast → cheap curve, ~0 ramp/draw. Slow → 1-drops
-vanish; six-drops + ~6–8 signets + **14–17 card-draw** dominate, i.e.
-**wipe-resilient draw-go control** that rebuilds to the development cap after each
-board wipe. **Draw switches on with game length** — 0 through turn ~7, then 7 at
-turn 9, up to ~20 by turn 12+. Lands drift 36–44 as draw/ramp substitute. The `0`
-on the diagonal is Karsten's Insight #2 (no drops at the commander's own MV); it
-breaks at MV 6 because **6 is the model's ceiling** (no 7+ drops) and after each
-wipe you need a *stock* of top-end to rebuild — so you run 6-drops even though the
-MV-6 commander is one (both worth 6.2).
+**Read across the brackets:** fast → a **cheap creature curve** (16–18 one-drops),
+~0 ramp/draw. Slow → 1-drops thin out and a **~8–11 card-draw** engine + a few
+signets appears — a resilient, low-ish deck that rebuilds to the cap from hand
+after each wipe. Draw grows with game length (0 short → ~4 mid → ~10 long). Lands
+hold ~38–42. The `0` on the diagonal is Karsten's Insight #2 (no drops at the
+commander's own MV); it breaks at MV 6 (6 is the model's ceiling — no 7+ drops —
+and you keep a *stock* of top-end to rebuild after wipes).
+
+**Cap sensitivity.** The per-turn development cap is the biggest lever on draw and
+ramp: **lower cap → more draw + ramp** (harsh diminishing returns make efficient
+post-wipe rebuild matter, so a draw/ramp engine pays off), **higher cap → back to
+a straight creature curve**. E.g. slow-bracket draw runs ~14–17 at cap 12 but
+~8–11 at cap 15.
 
 ### The full model (beyond Karsten's goldfish)
 
@@ -75,7 +79,7 @@ MV-6 commander is one (both worth 6.2).
   a wipe kills creatures + sends the commander to the command zone, but **rocks,
   lands, and your hand survive**. This is what makes ramp and draw earn their keep.
 - **Development cap** (diminishing returns): each turn contributes `min(board
-  value, 12)` to the score — over-committing past ~12 mana of board is wasted, so
+  value, 15)` to the score — over-committing past ~15 mana of board is wasted, so
   you hold cards (which then survive wipes).
 - **Card draw:** a pay-X-draw-X spell, played last, only when hand < 7 (or stuck).
   Mostly fires as a **1-mana leftover cantrip** (avg X ≈ 2).
@@ -84,7 +88,7 @@ MV-6 commander is one (both worth 6.2).
 
 **Chosen constants (magic numbers, not derived).** These are hand-picked and
 tunable, not fit to data: wipe **base 10% / ×1.2 escalation / start turn 5**;
-score **cap = 12**; weighting **σ = 1.5**. Six-drop / MV-6-commander = **6.2** is
+score **cap = 15**; weighting **σ = 1.5**. Six-drop / MV-6-commander = **6.2** is
 Karsten's experience-based super-linear premium (also a fudge, but justified).
 Bracket centers (7/9/11) come from r/EDH game-length data; hand-limit 7 is a rule.
 

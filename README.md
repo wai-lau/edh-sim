@@ -55,9 +55,6 @@ deck (99 cards). "Draw" = a card-draw spell (pay X, draw X); "Signets" = any
 | 5 | 8 | 12 | 10 | 10 | 0 | 6 | 10 | 4 | 38 |
 | 6 | 7 | 8 | 11 | 11 | 7 | 0 | 8 | 7 | 39 |
 
-*(Brackets 1 Exhibition and 5 cEDH — the extremes the model fits worst — are
-omitted.)*
-
 **Read across the brackets:**
 - **Fast (B4):** a **cheap creature curve** (16–18 one-drops), ~0 ramp/draw.
 - **Slow (B2):** 1-drops thin out and a **~8–11 card-draw** engine + a few signets

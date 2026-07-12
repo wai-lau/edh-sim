@@ -29,8 +29,8 @@ Format `[1d(1-drop) 2d 3d 4d 5d 6d | Draw | Signets | Lands]`, **+ 1 Sol Ring** 
 deck (99 cards). "Draw" = a card-draw spell (pay X, draw X); "Signets" = any
 2-mana rock. Deep converged run: 16 restarts, 1.2M-game final showdown. **Each
 bracket runs its own cap + wipe timing** (higher power = smaller lethal board,
-earlier interaction): **B4 cap 12 / wipe T3, B3 cap 14 / wipe T5, B2 cap 18 / wipe
-T6** — see [the model](#the-model).
+earlier interaction): **B4 cap 12 / wipe T3, B3 cap 15 / wipe T5, B2 cap 18 / wipe
+T7** — see [the model](#the-model).
 
 ### Bracket 4 — Optimized (fast, ~7-turn games · cap 12 · wipe from T3)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
@@ -41,32 +41,32 @@ T6** — see [the model](#the-model).
 | 5 | 16 | 20 | 15 | 6 | 0 | 0 | 0 | 0 | 41 |
 | 6 | 13 | 19 | 15 | 9 | 1 | 0 | 0 | 1 | 40 |
 
-### Bracket 3 — Upgraded (mid, ~9-turn games · cap 14 · wipe from T5)
+### Bracket 3 — Upgraded (mid, ~9-turn games · cap 15 · wipe from T5)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 10 | 0 | 21 | 15 | 7 | 1 | 3 | 0 | 41 |
-| 3 | 11 | 19 | 0 | 15 | 7 | 2 | 3 | 0 | 41 |
-| 4 | 12 | 19 | 16 | 0 | 7 | 1 | 2 | 0 | 41 |
-| 5 | 11 | 20 | 15 | 8 | 0 | 1 | 2 | 0 | 41 |
-| 6 | 10 | 16 | 14 | 10 | 3 | 0 | 2 | 2 | 41 |
+| 2 | 10 | 0 | 20 | 14 | 8 | 2 | 3 | 0 | 41 |
+| 3 | 10 | 18 | 0 | 15 | 8 | 2 | 3 | 0 | 42 |
+| 4 | 11 | 18 | 16 | 0 | 8 | 2 | 2 | 0 | 41 |
+| 5 | 11 | 19 | 15 | 9 | 0 | 1 | 2 | 0 | 41 |
+| 6 | 9 | 15 | 14 | 11 | 3 | 0 | 2 | 3 | 41 |
 
-### Bracket 2 — Core (slow, ~11-turn games · cap 18 · wipe from T6)
+### Bracket 2 — Core (slow, ~11-turn games · cap 18 · wipe from T7)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 3 | 0 | 17 | 13 | 9 | 5 | 10 | 0 | 41 |
-| 3 | 3 | 13 | 0 | 15 | 9 | 6 | 10 | 0 | 42 |
-| 4 | 4 | 13 | 14 | 0 | 10 | 7 | 9 | 1 | 40 |
-| 5 | 4 | 14 | 13 | 11 | 0 | 6 | 8 | 1 | 41 |
-| 6 | 4 | 8 | 12 | 12 | 8 | 0 | 9 | 6 | 39 |
+| 2 | 5 | 0 | 18 | 13 | 9 | 3 | 9 | 0 | 41 |
+| 3 | 4 | 14 | 0 | 16 | 9 | 4 | 9 | 0 | 42 |
+| 4 | 5 | 14 | 15 | 0 | 10 | 4 | 8 | 1 | 41 |
+| 5 | 5 | 15 | 14 | 11 | 0 | 4 | 7 | 1 | 41 |
+| 6 | 5 | 11 | 12 | 12 | 6 | 0 | 8 | 4 | 40 |
 
 **Read across the brackets:**
 - **Fast (B4):** a **cheap creature curve** (13–19 one-drops), ~0 ramp/draw — the
   small cap-12 board is trivial to rebuild with cheap creatures, so drawing/ramping
   only *delays* re-hitting the cap.
-- **Slow (B2):** 1-drops thin out to **3–4**, and a **~8–10 card-draw** engine +
-  signets (up to 6 at MV 6) appears — a resilient deck that rebuilds an *18*-mana
+- **Slow (B2):** 1-drops thin out to **4–5**, and a **~7–9 card-draw** engine +
+  signets (up to ~4–6 at MV 6) appears — a resilient deck that rebuilds an *18*-mana
   board from hand after each wipe. Draw grows with the cap/game length (0 in B4 →
-  ~2–3 in B3 → ~8–10 in B2).
+  ~2–3 in B3 → ~7–9 in B2).
 - Lands hold **~39–43** throughout.
 - The `0` on the diagonal is **Karsten's Insight #2** (no drops at the commander's
   own mana value) — the free commander already fills that slot. It breaks only at
@@ -112,7 +112,7 @@ to ~10 and 1-drops fall from ~17 to ~4 as the cap rises.
   command zone, but **rocks, lands, and your hand survive** — so you rebuild from
   the hand that survived (this is what makes ramp and draw earn their keep).
   `wipe_start` is **per-bracket** — higher-power tables hold up interaction earlier:
-  **B4 = T3, B3 = T5, B2 = T6**.
+  **B4 = T3, B3 = T5, B2 = T7**.
 - **Development cap — the lethal board (this is how synergy is modeled).** Each turn
   contributes `min(board value, cap)`. The cap = *how much board this power level
   needs to be a game-winning threat* — a board that's **about to win, held off by a
@@ -121,7 +121,7 @@ to ~10 and 1-drops fall from ~17 to ~4 as the cap rises.
   protection, and post-wipe redevelopment (held cards survive the wipe). Higher
   power ⇒ a *smaller* lethal board ⇒ a *lower* cap:
   **B4 = 12** (a fair 2-card combo, e.g. Kiki-Jiki + Zealous Conscripts),
-  **B3 = 14** (3–4 cards of real synergy), **B2 = 18** (~3 random six-drops). It's
+  **B3 = 15** (3–4 cards of real synergy), **B2 = 18** (~3 random six-drops). It's
   why the slow bracket wants a draw engine but few creatures: reach a lethal board,
   then keep cards to defend and rebuild it, not overextend into the next Wrath.
 - **Play policy — bin-pack, not greedy.** Each turn, after ramp (land / Sol Ring /
@@ -143,8 +143,8 @@ These are hand-picked and tunable, not derived:
 
 | Constant | Value | Basis |
 |---|---|---|
-| score cap (lethal board) | **B4 12 / B3 14 / B2 18** | chosen — smaller lethal board at higher power |
-| wipe start turn | **B4 3 / B3 5 / B2 6** | chosen — earlier interaction at higher power |
+| score cap (lethal board) | **B4 12 / B3 15 / B2 18** | chosen — smaller lethal board at higher power |
+| wipe start turn | **B4 3 / B3 5 / B2 7** | chosen — earlier interaction at higher power |
 | wipe chance | **10% base, ×1.2/wipe-free turn** | chosen |
 | weighting σ | **1.5** | chosen (pointier = fewer tail games) |
 | six-drop / MV-6 cmdr | **6.2** | Karsten's experience-based super-linear premium |

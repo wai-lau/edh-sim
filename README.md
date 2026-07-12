@@ -20,7 +20,7 @@ draw + bin-pack play).
 Game length is the biggest lever on the curve, and it tracks deck power. We
 optimize the deck at each horizon **T = 2–15**, then fold the per-horizon optima
 into **per-bracket curves** via a normal weighting centered on each bracket's
-characteristic game length (r/EDH midpoints: B4 ≈ 7, B3 ≈ 9, B2 ≈ 11 turns; **σ =
+characteristic game length (game length midpoints: B4 ≈ 7, B3 ≈ 9, B2 ≈ 11 turns; **σ =
 1.5**):
 
 <img src="docs/bracket_weights.svg" alt="Bracket turn-weighting" width="460">
@@ -85,8 +85,7 @@ T6** — see [the model](#the-model).
 **The cap is the biggest lever — and it's what separates the brackets.** The
 per-turn development cap = *how much board that power level needs to be lethal*
 (below). A **low cap (B4 = 12)** rebuilds to lethal with a couple of cheap
-creatures → cheap curve, no draw/ramp; a **high cap (B2 = 18)** needs ~3 fat
-threats' worth of board → a draw + ramp engine to assemble and re-assemble it after
+creatures → cheap curve, no draw/ramp; a **high cap (B2 = 18)** needs ~3 big drops to be lethal making a draw + ramp engine to assemble and re-assemble it after
 each wipe. So the fast → slow gradient is really *cap 12 → 18*: draw climbs from 0
 to ~10 and 1-drops fall from ~17 to ~4 as the cap rises.
 
@@ -114,7 +113,7 @@ to ~10 and 1-drops fall from ~17 to ~4 as the cap rises.
   the hand that survived (this is what makes ramp and draw earn their keep).
   `wipe_start` is **per-bracket** — higher-power tables hold up interaction earlier:
   **B4 = T3, B3 = T5, B2 = T6**.
-- **Development cap — the lethal board (this is how combos are modeled).** Each turn
+- **Development cap — the lethal board (this is how synergy is modeled).** Each turn
   contributes `min(board value, cap)`. The cap = *how much board this power level
   needs to be a game-winning threat* — a board that's **about to win, held off by a
   stopper**. It's worth the max (it's lethal), but no more (someone is stopping the
@@ -149,12 +148,10 @@ These are hand-picked and tunable, not derived:
 | wipe chance | **10% base, ×1.2/wipe-free turn** | chosen |
 | weighting σ | **1.5** | chosen (pointier = fewer tail games) |
 | six-drop / MV-6 cmdr | **6.2** | Karsten's experience-based super-linear premium |
-| bracket centers | **7 / 9 / 11** | r/EDH game-length midpoints |
-| hand size | **7** | MTG rule |
 
 ---
 
-## The mulligan (attacking Karsten's open problem)
+## The mulligan (attempt at Karsten's open problem)
 
 Karsten flagged the optimal mulligan as future work. We attack it with
 **value-function dynamic programming** (keep hand *h* iff its simulated value ≥ the
@@ -171,30 +168,6 @@ land-consistency insurance). **Not fully solved:** the DP is optimal only for th
 *simplified* value function; the distilled rule above is a lossy approximation of
 it and hasn't been re-derived for the full (wipe/cap/draw) model — which reuses
 the same rule. Full derivation: [`docs/methodology.md`](docs/methodology.md).
-
----
-
-## Faithful replication (validation vs Karsten)
-
-With the extensions off (goldfish, 7 turns, no cap/draw), the bare model
-reproduces Karsten's published table (`[1d 2d 3d 4d 5d 6d | Sig | Land]` + Sol Ring):
-
-| MV | ours | Karsten |
-|----|------|---------|
-| 2 | `8 0 21 14 10 3 \| 0 \| 42` | `9 0 20 14 9 4 \| 0 \| 42` |
-| 3 | `8 18 0 16 10 4 \| 0 \| 42` | `8 19 0 16 10 3 \| 0 \| 42` |
-| 4 | `7 19 16 0 11 4 \| 0 \| 41` | `6 12 13 0 13 8 \| 7 \| 39` |
-| 5 | `7 19 15 11 0 5 \| 0 \| 41` | `6 12 10 13 0 10 \| 8 \| 39` |
-| 6 | `6 15 14 12 7 0 \| 4 \| 40` | `6 12 10 14 9 0 \| 9 \| 38` |
-
-**Reproduced:** Insight #2 (zero N-drops at the commander's MV — exactly, all
-five); near-exact whole-deck match for cheap commanders (MV 2–3); high land counts
-(Insight #4); bulk on 2s/3s/4s (#1); more ramp for pricier commanders, directionally
-(#3). **Diverges:** absolute criterion ~0.4% low (his 4-MV deck 72.465 → 72.18
-here — his heuristics have unspecified slack; the *ordering* of his named
-perturbation reproduces with the same sign), and ramp is undervalued for expensive
-commanders at a 7-turn horizon — which is exactly the "noisiest, weakest" part he
-flagged, and which the horizon/wipe extensions later address.
 
 ---
 
@@ -254,15 +227,3 @@ An idealized curve model, not gospel. In practice: cut a land per 2–3 mana roc
 rock + 3-drop, `Llanowar Elves` as rock + 1-drop, an MDFC land as half-land; run
 fewer 1-drops if you have many tapped lands. And don't chase the tables exactly —
 aggro wants a lower curve, control a higher one, and real synergy beats raw curve.
-
-## Caveats
-
-The magic numbers above (per-bracket caps + wipe timing, wipe rate, σ) are chosen,
-not fit to real game data. Draw is modeled as a one-shot cantrip, not an ongoing
-engine (Rhystic Study), so its *selection/consistency* value is under-counted.
-Combos enter only through the cap (a lethal board a stopper holds off), not as
-explicit lines; and the bin-pack play policy prices *board value for the mana*, not
-card attrition — so it won't tell you to trade many cheap threats for a few big
-ones against sweepers. No colors, tapped lands, mana dorks, or tutors. cEDH (turn-3
-wins) is out of scope. The full-model optima sit on a flat-ish ridge — deeper
-search can shift ±1s and occasionally jump basins.

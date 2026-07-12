@@ -128,10 +128,55 @@ def test_no_wipe_before_turn5():
     assert board[1] == 2 and wstate[0] == 13
 
 
+def test_per_bracket_wipe_start():
+    """wipe_start moves the first-wipe turn per bracket (B4=3 early, B2=6 late)."""
+    from sim_core import maybe_wipe
+    # B4: wipe_start=3 -> a wipe CAN fire on turn 3 (default 5 would not)
+    board = blank(); board[1] = 2
+    wstate = np.array([13], dtype=np.int64)               # guaranteed wipe if rolled
+    maybe_wipe(board, cst(3, 1), wstate, new_rng(1), 3, wipe_start=3)
+    assert board[1] == 0 and wstate[0] == 0               # fired at turn 3
+
+    # B2: wipe_start=6 -> turn 5 is still safe
+    board = blank(); board[1] = 2
+    wstate = np.array([13], dtype=np.int64)
+    maybe_wipe(board, cst(5, 1), wstate, new_rng(1), 5, wipe_start=6)
+    assert board[1] == 2 and wstate[0] == 13              # no wipe at turn 5
+
+
 def test_commander_cast_on_curve():
     hand = blank()
     board = blank()
     board[0] = 4
     cs = cst(4)
     play_turn(hand, board, cs, 4, lib_of(0), 0, new_rng(1))
+    assert cs[1] == 1
+
+
+def test_binpack_fills_mana_not_largest():
+    """6 mana, {4-drop, two 3-drops}: greedy plays the 4 (strands 2 mana); the
+    bin-pack plays 3+3 = 6 (uses all the mana). No cap, commander already cast."""
+    hand = blank(); hand[4] = 1; hand[3] = 2
+    board = blank(); board[0] = 5            # + drawn land -> 6 mana
+    play_turn(hand, board, cst(4, cast=1), 7, lib_of(0), 0, new_rng(1))
+    assert board[3] == 2 and board[4] == 0
+
+
+def test_binpack_overshoots_cap_and_holds():
+    """5 mana, space 4, hand {5-drop, 3-drop}: play the 5 (min(5,4)=4 = reach the
+    cap) and HOLD the 3 for later, rather than play the 3 (scores only 3).
+    Commander uncast + unaffordable (6 MV) so it does not enter the board value."""
+    hand = blank(); hand[5] = 1; hand[3] = 1
+    board = blank(); board[0] = 4            # + drawn land -> 5 mana
+    play_turn(hand, board, cst(6, cast=0), 7, lib_of(0), 0, new_rng(1), 4.0)
+    assert board[5] == 1 and board[3] == 0 and hand[3] == 1
+
+
+def test_binpack_includes_commander():
+    """Empty hand, 4 mana, uncast MV-4 commander, no cap: the pack casts the
+    commander (it is one of the available value items)."""
+    hand = blank()
+    board = blank(); board[0] = 3            # + drawn land -> 4 mana
+    cs = cst(4, cast=0)
+    play_turn(hand, board, cs, 7, lib_of(0), 0, new_rng(1))
     assert cs[1] == 1

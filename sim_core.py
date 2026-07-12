@@ -11,6 +11,7 @@ sum 98; one implicit Sol Ring -> 99-card library.
 import numpy as np
 from numba import int64, njit
 
+from binpack import solve_pack
 from cards import (
     DRAW,
     LAND,
@@ -254,33 +255,23 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
             if _cast_mv(hand, board, cstate, N - 1, cap):
                 mana -= (N - 1)           # mana now 0 (else held under the cap)
 
-    # 6. gap-fill: no N-drop but 2-drop + distinct (N-2)-drop
-    while mana >= 3 and not _has_drop(hand, cstate, mana):
-        n2 = mana - 2
-        if n2 == 2:
-            ok = hand[2] >= 2
-        else:
-            ok = hand[2] >= 1 and _has_drop(hand, cstate, n2)
-        if not ok:
-            break
-        if _cast_mv(hand, board, cstate, 2, cap):
-            mana -= 2
-        if _cast_mv(hand, board, cstate, n2, cap):
-            mana -= n2
-        else:
-            break                          # (N-2)-drop held under the cap -> stop
-
-    # 7. greedy: highest-MV castable, down from 6 (skips drops that bust the cap)
-    progress = True
-    while progress and mana >= 1:
-        progress = False
-        mv = 6
-        while mv >= 1:
-            if mv <= mana and _cast_mv(hand, board, cstate, mv, cap):
-                mana -= mv
-                progress = True
-                break
-            mv -= 1
+    # 6-7. bin-pack the remaining mana: the value-maximizing set of hand drops
+    #      (+ commander) capped at `space` = cap - board value; hold the rest.
+    if mana >= 1:
+        bv = _raw_board_value(board, cstate[1], cstate[0])
+        if bv < cap:
+            cmdr = cstate[0] if cstate[1] == 0 else 0
+            plan = solve_pack(mana, cap - bv, hand[1], hand[2], hand[3],
+                              hand[4], hand[5], hand[6], cmdr)
+            for k in range(1, 7):
+                q = (plan >> ((k - 1) * 5)) & 0x1F
+                if q > 0:
+                    hand[k] -= q
+                    board[k] += q
+                    mana -= k * q
+            if (plan >> 30) & 1:           # commander included in the pack
+                cstate[1] = 1
+                mana -= cstate[0]
 
     # 8. draw-card mana sink (LAST): pay X leftover mana, draw X -- but only when
     #    the hand is below 7 cards (don't over-draw a full hand; >=7 -> force-hold).
@@ -318,13 +309,14 @@ def play_turn(hand, board, cstate, turn, lib, draw_ptr, rng, cap=1.0e9):
 # Whole-game + Monte Carlo.                                                    #
 # --------------------------------------------------------------------------- #
 @njit(cache=True)
-def maybe_wipe(board, cstate, wstate, wrng, turn):
-    """Roll a board wipe before turn `turn` (turns >=5 only). Chance =
+def maybe_wipe(board, cstate, wstate, wrng, turn, wipe_start=5):
+    """Roll a board wipe before turn `turn` (turns >= wipe_start only). Chance =
     0.10 * 1.2^(consecutive wipe-free turns). On a wipe: creatures (drops) die,
     the commander returns to the command zone (recastable), rocks + lands survive,
     and the wipe-free counter resets. Uses a separate RNG stream (wrng) so the
-    wipe schedule is shared across decks -> CRN stays intact."""
-    if turn < 5:
+    wipe schedule is shared across decks -> CRN stays intact. `wipe_start` is
+    per-bracket: higher-power tables interact earlier (B4=3, B3=5, B2=6)."""
+    if turn < wipe_start:
         return
     chance = 0.10
     for _ in range(wstate[0]):
@@ -341,7 +333,7 @@ def maybe_wipe(board, cstate, wstate, wrng, turn):
 
 @njit(cache=True)
 def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False,
-                  wipes=False, cap=1.0e9):
+                  wipes=False, cap=1.0e9, wipe_start=5):
     rng = new_rng(seed)
     lib = build_library(deck_counts)
     if adaptive:
@@ -355,7 +347,7 @@ def simulate_game(deck_counts, commander_mv, seed, n_turns=7, adaptive=False,
     total = 0.0
     for turn in range(1, n_turns + 1):
         if wipes:
-            maybe_wipe(board, cstate, wstate, wrng, turn)
+            maybe_wipe(board, cstate, wstate, wrng, turn, wipe_start)
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
         total += score_board(board, cstate[1], cstate[0], cap)
     return total
@@ -401,12 +393,13 @@ def _game_seed(base_seed, i):
 
 @njit(cache=True)
 def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
-                  adaptive=False, wipes=False, cap=1.0e9):
+                  adaptive=False, wipes=False, cap=1.0e9, wipe_start=5):
     mean = 0.0
     m2 = 0.0
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive, wipes, cap)
+        x = simulate_game(deck_counts, commander_mv, s, n_turns, adaptive, wipes,
+                          cap, wipe_start)
         d = x - mean
         mean += d / (i + 1)
         m2 += d * (x - mean)
@@ -416,7 +409,7 @@ def simulate_deck(deck_counts, commander_mv, n_games, base_seed, n_turns=7,
 
 @njit(cache=True)
 def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipes,
-                      cap=1.0e9):
+                      cap=1.0e9, wipe_start=5):
     """Play one game to max_turns, returning the CUMULATIVE criterion after each
     turn: cum[t-1] = horizon-t criterion. One game -> every horizon at once, since
     a horizon-T game is the horizon-(T+1) game truncated (same deck, same seed).
@@ -436,7 +429,7 @@ def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipe
     total = 0.0
     for turn in range(1, max_turns + 1):
         if wipes:
-            maybe_wipe(board, cstate, wstate, wrng, turn)
+            maybe_wipe(board, cstate, wstate, wrng, turn, wipe_start)
         ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)
         total += score_board(board, cstate[1], cstate[0], cap)
         cum[turn - 1] = total
@@ -445,13 +438,14 @@ def simulate_game_cum(deck_counts, commander_mv, seed, max_turns, adaptive, wipe
 
 @njit(cache=True)
 def simulate_deck_cum(deck_counts, commander_mv, n_games, base_seed, max_turns,
-                      adaptive, wipes, cap=1.0e9):
+                      adaptive, wipes, cap=1.0e9, wipe_start=5):
     """Mean criterion for every horizon 1..max_turns from n_games cumulative games.
     means[t-1] = expected horizon-t criterion."""
     means = np.zeros(max_turns, dtype=np.float64)
     for i in range(n_games):
         s = _game_seed(base_seed, i)
-        cum = simulate_game_cum(deck_counts, commander_mv, s, max_turns, adaptive, wipes, cap)
+        cum = simulate_game_cum(deck_counts, commander_mv, s, max_turns, adaptive,
+                                wipes, cap, wipe_start)
         for t in range(max_turns):
             means[t] += (cum[t] - means[t]) / (i + 1)
     return means
@@ -459,7 +453,7 @@ def simulate_deck_cum(deck_counts, commander_mv, n_games, base_seed, max_turns,
 
 @njit(cache=True)
 def deck_drawstats(deck_counts, commander_mv, n_games, base_seed, n_turns,
-                   adaptive, wipes, cap):
+                   adaptive, wipes, cap, wipe_start=5):
     """Histogram of the mana value X at which draw cards are played (X = the mana
     paid = cards drawn). Observed from outside play_turn: a draw fired iff
     hand[DRAW] dropped, and X = (draw_ptr advance) - 1 (the always-on-the-draw
@@ -479,7 +473,7 @@ def deck_drawstats(deck_counts, commander_mv, n_games, base_seed, n_turns,
         wrng = new_rng(np.uint64(s) + np.uint64(0x2545F4914F6CDD1D))
         for turn in range(1, n_turns + 1):
             if wipes:
-                maybe_wipe(board, cstate, wstate, wrng, turn)
+                maybe_wipe(board, cstate, wstate, wrng, turn, wipe_start)
             d_before = hand[DRAW]
             p_before = ptr
             ptr = play_turn(hand, board, cstate, turn, lib, ptr, rng, cap)

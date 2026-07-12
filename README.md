@@ -5,12 +5,13 @@ Commander** mana curves. It starts as a faithful reimplementation of Frank
 Karsten's [*"What's an Optimal Mana Curve and Land/Ramp Count for Commander?"*
 (ChannelFireball, 2025)](https://www.tcgplayer.com/content/article/What-s-an-Optimal-Mana-Curve-and-Land-Ramp-Count-for-Commander) — reproducing his published table from the article's prose
 — then **extends past his goldfish** with the things that actually shape a
-Commander deck: **interaction (board wipes), a "lethal board" cap (enough on board
-to win if it sticks), card draw, a swept game-length horizon, and per-bracket
-curves.**
+Commander deck: **interaction (board wipes), a per-bracket "lethal board" cap (the
+board you need to be a game-winning threat), a value-maximizing play policy (bin-
+pack), card draw, a swept game-length horizon, and per-bracket curves.**
 
 The whole per-game engine is `@njit`-compiled (Numba). Throughput ~1M games/s for
-the bare Karsten model, ~0.2–0.5M/s for the full model (wipes + cap + draw).
+the bare Karsten model, ~0.4M/s (~230 ns/turn) for the full model (wipes + cap +
+draw + bin-pack play).
 
 ---
 
@@ -26,47 +27,54 @@ characteristic game length (r/EDH midpoints: B4 ≈ 7, B3 ≈ 9, B2 ≈ 11 turns
 
 Format `[1d(1-drop) 2d 3d 4d 5d 6d | Draw | Signets | Lands]`, **+ 1 Sol Ring** in every
 deck (99 cards). "Draw" = a card-draw spell (pay X, draw X); "Signets" = any
-2-mana rock. Deep converged run: 16 restarts, 1.2M-game final showdown, **cap = 15**.
+2-mana rock. Deep converged run: 16 restarts, 1.2M-game final showdown. **Each
+bracket runs its own cap + wipe timing** (higher power = smaller lethal board,
+earlier interaction): **B4 cap 12 / wipe T3, B3 cap 14 / wipe T5, B2 cap 18 / wipe
+T6** — see [the model](#the-model).
 
-### Bracket 4 — Optimized (fast, ~7-turn games)
+### Bracket 4 — Optimized (fast, ~7-turn games · cap 12 · wipe from T3)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 16 | 0 | 22 | 13 | 5 | 0 | 0 | 0 | 42 |
-| 3 | 16 | 20 | 0 | 15 | 6 | 0 | 0 | 0 | 41 |
-| 4 | 18 | 19 | 15 | 0 | 5 | 0 | 1 | 0 | 40 |
-| 5 | 16 | 19 | 14 | 6 | 0 | 1 | 1 | 0 | 41 |
+| 2 | 16 | 0 | 23 | 13 | 2 | 1 | 0 | 0 | 43 |
+| 3 | 17 | 20 | 0 | 14 | 3 | 1 | 0 | 0 | 43 |
+| 4 | 19 | 20 | 15 | 0 | 3 | 0 | 0 | 0 | 41 |
+| 5 | 16 | 20 | 15 | 6 | 0 | 0 | 0 | 0 | 41 |
 | 6 | 13 | 19 | 15 | 9 | 1 | 0 | 0 | 1 | 40 |
 
-### Bracket 3 — Upgraded (mid, ~9-turn games)
+### Bracket 3 — Upgraded (mid, ~9-turn games · cap 14 · wipe from T5)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 11 | 0 | 20 | 14 | 8 | 2 | 3 | 0 | 40 |
-| 3 | 11 | 17 | 0 | 15 | 8 | 3 | 4 | 0 | 40 |
-| 4 | 12 | 16 | 13 | 0 | 9 | 3 | 5 | 1 | 39 |
-| 5 | 12 | 15 | 12 | 9 | 0 | 3 | 4 | 2 | 41 |
-| 6 | 10 | 13 | 13 | 11 | 4 | 0 | 2 | 4 | 41 |
+| 2 | 10 | 0 | 21 | 15 | 7 | 1 | 3 | 0 | 41 |
+| 3 | 11 | 19 | 0 | 15 | 7 | 2 | 3 | 0 | 41 |
+| 4 | 12 | 19 | 16 | 0 | 7 | 1 | 2 | 0 | 41 |
+| 5 | 11 | 20 | 15 | 8 | 0 | 1 | 2 | 0 | 41 |
+| 6 | 10 | 16 | 14 | 10 | 3 | 0 | 2 | 2 | 41 |
 
-### Bracket 2 — Core (slow, ~11-turn games)
+### Bracket 2 — Core (slow, ~11-turn games · cap 18 · wipe from T6)
 | Cmdr MV | 1d | 2d | 3d | 4d | 5d | 6d | Draw | Sig | Land |
 |:---:|:--:|:--:|:--:|:--:|:--:|:--:|:----:|:---:|:----:|
-| 2 | 7 | 0 | 17 | 13 | 8 | 5 | 10 | 0 | 38 |
-| 3 | 7 | 12 | 0 | 13 | 8 | 6 | 10 | 1 | 41 |
-| 4 | 7 | 12 | 11 | 0 | 9 | 6 | 11 | 2 | 40 |
-| 5 | 8 | 12 | 10 | 10 | 0 | 6 | 10 | 4 | 38 |
-| 6 | 7 | 8 | 11 | 11 | 7 | 0 | 8 | 7 | 39 |
+| 2 | 3 | 0 | 17 | 13 | 9 | 5 | 10 | 0 | 41 |
+| 3 | 3 | 13 | 0 | 15 | 9 | 6 | 10 | 0 | 42 |
+| 4 | 4 | 13 | 14 | 0 | 10 | 7 | 9 | 1 | 40 |
+| 5 | 4 | 14 | 13 | 11 | 0 | 6 | 8 | 1 | 41 |
+| 6 | 4 | 8 | 12 | 12 | 8 | 0 | 9 | 6 | 39 |
 
 **Read across the brackets:**
-- **Fast (B4):** a **cheap creature curve** (16–18 one-drops), ~0 ramp/draw.
-- **Slow (B2):** 1-drops thin out and a **~8–11 card-draw** engine + a few signets
-  appears — a resilient, low-ish deck that rebuilds to the cap from hand after
-  each board wipe. Draw grows with game length (0 short → ~4 mid → ~10 long).
-- Lands hold **~38–42** throughout.
+- **Fast (B4):** a **cheap creature curve** (13–19 one-drops), ~0 ramp/draw — the
+  small cap-12 board is trivial to rebuild with cheap creatures, so drawing/ramping
+  only *delays* re-hitting the cap.
+- **Slow (B2):** 1-drops thin out to **3–4**, and a **~8–10 card-draw** engine +
+  signets (up to 6 at MV 6) appears — a resilient deck that rebuilds an *18*-mana
+  board from hand after each wipe. Draw grows with the cap/game length (0 in B4 →
+  ~2–3 in B3 → ~8–10 in B2).
+- Lands hold **~39–43** throughout.
 - The `0` on the diagonal is **Karsten's Insight #2** (no drops at the commander's
   own mana value) — the free commander already fills that slot. It breaks only at
   MV 6: 6 is the model's ceiling (no 7+ drops), and you keep a *stock* of top-end
   to rebuild after wipes.
-- **Draw cards are cheap cantrips:** cast at an average **X ≈ 2.3** (~55–59% at
-  X = 1) — a 1-mana leftover-mana filter, with a thin tail of big post-wipe digs.
+- **Draw cards are cheap cantrips:** cast at an average **X ≈ 2.3** (~56% at
+  X = 1) — a 1-mana leftover-mana filter, with a ~10% tail of big post-wipe digs
+  (X ≥ 6).
 
 > ⚠️ **Draw is under-counted in the high brackets.** The fast tables (Optimized /
 > cEDH) show ~0 draw, but that's a model artifact: the compounded-board-mana
@@ -74,11 +82,13 @@ deck (99 cards). "Draw" = a card-draw spell (pay X, draw X); "Signets" = any
 > which is the whole reason high-power decks run heavy card selection. Real
 > Optimized/cEDH decks want far more draw than the board-mana metric rewards.
 
-**Cap sensitivity — the biggest knob.** The per-turn development cap governs how
-much draw and ramp you want: **lower cap → more draw + ramp** (harsh diminishing
-returns make efficient post-wipe rebuild matter, so a draw/ramp engine pays off);
-**higher cap → back toward a straight creature curve.** Slow-bracket draw runs
-~14–17 at cap 12 but ~8–11 at cap 15.
+**The cap is the biggest lever — and it's what separates the brackets.** The
+per-turn development cap = *how much board that power level needs to be lethal*
+(below). A **low cap (B4 = 12)** rebuilds to lethal with a couple of cheap
+creatures → cheap curve, no draw/ramp; a **high cap (B2 = 18)** needs ~3 fat
+threats' worth of board → a draw + ramp engine to assemble and re-assemble it after
+each wipe. So the fast → slow gradient is really *cap 12 → 18*: draw climbs from 0
+to ~10 and 1-drops fall from ~17 to ~4 as the cap rises.
 
 ---
 
@@ -90,25 +100,39 @@ returns make efficient post-wipe rebuild matter, so a draw/ramp engine pays off)
   free MV-N spell in the command zone (cast once; recastable after a wipe).
 - **Criterion** = expected *compounded board mana*. At each turn end, sum the mana
   worth of on-board non-rock, non-land permanents, then **cap it** per turn
-  (`min(·, cap)`). A k-drop is worth k; a **six-drop is 6.2** (Karsten's
-  super-linear premium); the commander is scored the same (raw MV for 1–5, **6.2
-  at MV 6**). Rocks, lands, and draw spells score 0. The horizon T (turns summed)
-  is a parameter — Karsten's base is 7; we sweep **2–15**.
+  (`min(·, cap)`, cap per-bracket — below). A k-drop is worth k; a **six-drop is
+  6.2** (Karsten's super-linear premium); the commander is scored the same (raw MV
+  for 1–5, **6.2 at MV 6**). Rocks, lands, and draw spells score 0. The horizon T
+  (turns summed) is a parameter — Karsten's base is 7; we sweep **2–15**.
 - Multiplayer rules: **free first mulligan**, **always on the draw**, London
   bottoming.
 
 ### The full model (beyond Karsten's goldfish)
-- **Board wipes** (interaction): each turn ≥ 5, wipe chance `0.10 × 1.2^(wipe-free
-  turns)`. A wipe kills creatures and sends the commander to the command zone, but
-  **rocks, lands, and your hand survive**. This is what makes ramp and draw earn
-  their keep — you rebuild from the hand that survived.
-- **Development cap** — *enough board to win if it sticks*: each turn contributes
-  `min(board value, 15)`. The idea: ~15 mana of board is enough to close the game
-  **if it survives a few turns**, so piling on more board does nothing. Instead you
-  **hold the rest of your hand** — for interaction, protection, and redevelopment
-  after a wipe (and those held cards survive the wipe). It's why the slow brackets
-  want a draw engine but a *low* creature count: get to a lethal board, then keep
-  cards to defend and rebuild it, not overextend into the next Wrath.
+- **Board wipes** (interaction): each turn ≥ `wipe_start`, wipe chance `0.10 ×
+  1.2^(wipe-free turns)`. A wipe kills creatures and sends the commander to the
+  command zone, but **rocks, lands, and your hand survive** — so you rebuild from
+  the hand that survived (this is what makes ramp and draw earn their keep).
+  `wipe_start` is **per-bracket** — higher-power tables hold up interaction earlier:
+  **B4 = T3, B3 = T5, B2 = T6**.
+- **Development cap — the lethal board (this is how combos are modeled).** Each turn
+  contributes `min(board value, cap)`. The cap = *how much board this power level
+  needs to be a game-winning threat* — a board that's **about to win, held off by a
+  stopper**. It's worth the max (it's lethal), but no more (someone is stopping the
+  actual win), so beyond the cap you **hold the rest of your hand** for interaction,
+  protection, and post-wipe redevelopment (held cards survive the wipe). Higher
+  power ⇒ a *smaller* lethal board ⇒ a *lower* cap:
+  **B4 = 12** (a fair 2-card combo, e.g. Kiki-Jiki + Zealous Conscripts),
+  **B3 = 14** (3–4 cards of real synergy), **B2 = 18** (~3 random six-drops). It's
+  why the slow bracket wants a draw engine but few creatures: reach a lethal board,
+  then keep cards to defend and rebuild it, not overextend into the next Wrath.
+- **Play policy — bin-pack, not greedy.** Each turn, after ramp (land / Sol Ring /
+  signets, played greedily), the remaining mana is spent by a bounded-knapsack that
+  **maximizes the value it adds** (`min(Σ value, cap − board)`), breaking ties by
+  playing the **fewest cards** (hold the rest). It may overshoot the cap with one
+  card to reach it. This replaces a greedy highest-first dump (which stranded mana —
+  playing a 4-drop with 2 mana left over instead of two 3-drops). At the optimum the
+  two nearly coincide (the optimizer already picks gap-free cheap curves), but the
+  pack is correct on any deck and ~30% *faster* than the old greedy.
 - **Card draw:** a pay-X-draw-X spell, played *last*, only when your hand is below
   7 cards (or you're stuck with nothing else castable — a rare dig).
 - **Optimizer:** *explore-cheap → select-precise* — many cheap local-search
@@ -120,8 +144,9 @@ These are hand-picked and tunable, not derived:
 
 | Constant | Value | Basis |
 |---|---|---|
-| score cap | **15** | chosen (tried 10 / 12 / 15) |
-| wipe chance | **10% base, ×1.2/turn, from turn 5** | chosen |
+| score cap (lethal board) | **B4 12 / B3 14 / B2 18** | chosen — smaller lethal board at higher power |
+| wipe start turn | **B4 3 / B3 5 / B2 6** | chosen — earlier interaction at higher power |
+| wipe chance | **10% base, ×1.2/wipe-free turn** | chosen |
 | weighting σ | **1.5** | chosen (pointier = fewer tail games) |
 | six-drop / MV-6 cmdr | **6.2** | Karsten's experience-based super-linear premium |
 | bracket centers | **7 / 9 / 11** | r/EDH game-length midpoints |
@@ -156,16 +181,16 @@ reproduces Karsten's published table (`[1d 2d 3d 4d 5d 6d | Sig | Land]` + Sol R
 
 | MV | ours | Karsten |
 |----|------|---------|
-| 2 | `9 0 21 13 9 4 \| 0 \| 42` | `9 0 20 14 9 4 \| 0 \| 42` |
+| 2 | `8 0 21 14 10 3 \| 0 \| 42` | `9 0 20 14 9 4 \| 0 \| 42` |
 | 3 | `8 18 0 16 10 4 \| 0 \| 42` | `8 19 0 16 10 3 \| 0 \| 42` |
-| 4 | `7 18 16 0 10 5 \| 0 \| 42` | `6 12 13 0 13 8 \| 7 \| 39` |
-| 5 | `7 15 13 11 0 8 \| 4 \| 40` | `6 12 10 13 0 10 \| 8 \| 39` |
-| 6 | `6 16 13 12 7 0 \| 4 \| 40` | `6 12 10 14 9 0 \| 9 \| 38` |
+| 4 | `7 19 16 0 11 4 \| 0 \| 41` | `6 12 13 0 13 8 \| 7 \| 39` |
+| 5 | `7 19 15 11 0 5 \| 0 \| 41` | `6 12 10 13 0 10 \| 8 \| 39` |
+| 6 | `6 15 14 12 7 0 \| 4 \| 40` | `6 12 10 14 9 0 \| 9 \| 38` |
 
 **Reproduced:** Insight #2 (zero N-drops at the commander's MV — exactly, all
 five); near-exact whole-deck match for cheap commanders (MV 2–3); high land counts
 (Insight #4); bulk on 2s/3s/4s (#1); more ramp for pricier commanders, directionally
-(#3). **Diverges:** absolute criterion ~0.6% low (his 4-MV deck 72.465 → ~71.98
+(#3). **Diverges:** absolute criterion ~0.4% low (his 4-MV deck 72.465 → 72.18
 here — his heuristics have unspecified slack; the *ordering* of his named
 perturbation reproduces with the same sign), and ramp is undervalued for expensive
 commanders at a 7-turn horizon — which is exactly the "noisiest, weakest" part he
@@ -183,7 +208,7 @@ flagged, and which the horizon/wipe extensions later address.
   turn, so a single pass yields *all* horizons — a horizon-T game is the
   horizon-(T+1) game truncated.
 - **Numba engine:** removes his multi-day runtime — a 2M-game evaluation is ~2 s
-  for the bare model, ~5–10 s for the full model.
+  for the bare model, ~4 s for the full model (~230 ns/turn).
 
 ---
 
@@ -191,12 +216,13 @@ flagged, and which the horizon/wipe extensions later address.
 
 ```bash
 uv sync
-make test                           # 59 fast tests
+make test                           # 63 fast tests
 make lint                           # ruff + 500-line file cap
 uv run pytest -m slow               # Monte Carlo / optimizer anchors (~3.5 min)
 
-# FULL model (wipes + cap + draw), explore-cheap optimizer -> per-bracket curves:
-uv run python run_final.py --seed-json <seed.json> --restarts 16 --final-sims 1200000
+# FULL model (wipes + cap + draw + bin-pack), one bracket (e.g. B4 = cap 12, wipe T3):
+uv run python run_final.py --seed-json <seed.json> --restarts 16 --final-sims 1200000 \
+    --cap 12 --wipe-start 3 --turns-min 4 --turns-max 10
 
 # FAITHFUL Karsten base (7-turn goldfish, no wipes/cap/draw):
 uv run python main.py run           # optimize all 5 commander MVs -> table
@@ -213,6 +239,7 @@ uv run python -c "import mulligan"
 |---|---|
 | `cards.py` | card codes, seedable PRNG, library construction |
 | `sim_core.py` | `@njit` engine: mulligan, gameplay, wipes, scoring, cumulative sim, draw-stats |
+| `binpack.py` | `@njit` bounded-knapsack play policy (value-max mana spend, hold the rest) |
 | `optimizer.py` | local search + CRN, explore-cheap→select-precise, joint sweep, neighborhoods |
 | `run_final.py` | full-model per-bracket runner (per-cell crash-safe save) |
 | `main.py` / `sweep.py` / `overnight.py` / `mulligan.py` | faithful CLI / horizon sweep / self-pacing runner / mulligan DP |
@@ -230,8 +257,12 @@ aggro wants a lower curve, control a higher one, and real synergy beats raw curv
 
 ## Caveats
 
-The magic numbers above (cap, wipe rate, σ) are chosen, not fit to real game data.
-Draw is modeled as a one-shot cantrip, not an ongoing engine (Rhystic Study), so
-its *selection/consistency* value is under-counted. No colors, tapped lands, mana
-dorks, tutors, or combos. cEDH (turn-3 wins) is out of scope. The full-model optima
-sit on a flat-ish ridge — deeper search can shift ±1s and occasionally jump basins.
+The magic numbers above (per-bracket caps + wipe timing, wipe rate, σ) are chosen,
+not fit to real game data. Draw is modeled as a one-shot cantrip, not an ongoing
+engine (Rhystic Study), so its *selection/consistency* value is under-counted.
+Combos enter only through the cap (a lethal board a stopper holds off), not as
+explicit lines; and the bin-pack play policy prices *board value for the mana*, not
+card attrition — so it won't tell you to trade many cheap threats for a few big
+ones against sweepers. No colors, tapped lands, mana dorks, or tutors. cEDH (turn-3
+wins) is out of scope. The full-model optima sit on a flat-ish ridge — deeper
+search can shift ±1s and occasionally jump basins.

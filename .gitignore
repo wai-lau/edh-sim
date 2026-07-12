@@ -6,3 +6,4 @@ __pycache__/
 .numba_cache/
 overnight_results.json
 *.out
+HANDOFF.md

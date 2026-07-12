@@ -60,13 +60,14 @@ def _key(deck):
 def local_search(commander_mv, start_deck, base_seed,
                  max_sims=200_000, sim_step=1000, sim_start=10_000,
                  switch_star=150_000, verbose=False, n_turns=7, adaptive=False,
-                 wipes=False, cap=1.0e9):
+                 wipes=False, cap=1.0e9, wipe_start=5):
     cache = {}   # key -> (n_games, pooled_mean)
 
     def evaluate(deck, n_games, seed):
         k = _key(deck)
         m, _ = simulate_deck(np.asarray(deck, dtype=np.int64),
-                             commander_mv, n_games, seed, n_turns, adaptive, wipes, cap)
+                             commander_mv, n_games, seed, n_turns, adaptive, wipes,
+                             cap, wipe_start)
         prev = cache.get(k)
         if prev is None:
             cache[k] = (n_games, m)
@@ -129,7 +130,7 @@ START_DECKS = {
 
 def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
                    sim_start=15_000, sim_step=15_000, adaptive=True, wipes=True,
-                   verbose=False, cap=1.0e9):
+                   verbose=False, cap=1.0e9, wipe_start=5):
     """Optimize the deck for EVERY horizon at once (one commander MV), sharing
     evaluations across horizons. Each iteration: take the union of the cross
     neighborhoods of all current per-horizon bests, evaluate every unique
@@ -152,7 +153,7 @@ def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
             for nb in neighbors_cross(best[T]):
                 cands[tuple(int(x) for x in nb)] = nb
         crit = {k: simulate_deck_cum(np.asarray(d, dtype=np.int64), mv, sims, seed,
-                                     max_turn, adaptive, wipes, cap)
+                                     max_turn, adaptive, wipes, cap, wipe_start)
                 for k, d in cands.items()}
         moved = False
         for T in horizons:
@@ -175,7 +176,8 @@ def sweep_mv_joint(mv, horizons, start_decks, base_seed, max_sims=200_000,
     seed = base_seed + 987659
     out = {}
     for T in horizons:
-        m = simulate_deck_cum(best[T], mv, max_sims, seed, max_turn, adaptive, wipes, cap)
+        m = simulate_deck_cum(best[T], mv, max_sims, seed, max_turn, adaptive, wipes,
+                              cap, wipe_start)
         out[T] = (best[T], float(m[T - 1]))
     return out
 
@@ -228,7 +230,8 @@ def optimize_commander(commander_mv, restarts=3, master_seed=0, verbose=False, *
 
 def optimize_precise(mv, n_turns, start_deck, master_seed=0, n_restarts=10,
                      cheap_sims=35_000, sim_start=12_000, sim_step=12_000,
-                     final_sims=600_000, adaptive=True, wipes=True, cap=1.0e9):
+                     final_sims=600_000, adaptive=True, wipes=True, cap=1.0e9,
+                     wipe_start=5):
     """Explore cheap, select precise. Run n_restarts CHEAP local searches from
     jittered starts (few sims each -> diverse but noisy), collect the unique
     finalist decks, then RE-EVALUATE them all at final_sims on one shared CRN seed
@@ -245,13 +248,14 @@ def optimize_precise(mv, n_turns, start_deck, master_seed=0, n_restarts=10,
         best, _ = local_search(mv, s, base_seed=master_seed + r * 104729,
                                max_sims=cheap_sims, sim_start=sim_start,
                                sim_step=sim_step, switch_star=10 ** 9,
-                               n_turns=n_turns, adaptive=adaptive, wipes=wipes, cap=cap)
+                               n_turns=n_turns, adaptive=adaptive, wipes=wipes,
+                               cap=cap, wipe_start=wipe_start)
         finalists[tuple(int(x) for x in best)] = best
     seed = master_seed + 999983                       # shared CRN seed for the showdown
     best_deck, best_crit = base, -1e18
     for f in finalists.values():
         m, _ = simulate_deck(np.asarray(f, dtype=np.int64), mv, final_sims, seed,
-                             n_turns, adaptive, wipes, cap)
+                             n_turns, adaptive, wipes, cap, wipe_start)
         if m > best_crit:
             best_crit, best_deck = m, np.asarray(f, dtype=np.int64)
     return best_deck, best_crit

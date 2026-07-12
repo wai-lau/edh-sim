@@ -19,6 +19,7 @@ TURNS = list(range(2, 16))                     # 2..15
 CENTERS = {7: "B4 Optimized", 9: "B3 Upgraded", 11: "B2 Core"}
 SIGMAS = [1.0, 1.5, 2.0]     # pointier weighting (fewer tail games); 1.5 = default
 CAP = 15.0
+WIPE_START = 5               # first turn a wipe can occur (per-bracket: B4=3,B3=5,B2=6)
 SC = "/tmp/claude-1000/-home-wai-src-edh-sim/60ad851b-b04c-47bd-8207-d12d4aaf370d/scratchpad"
 OUT = f"{SC}/final.json"
 SEED_DECKS = None
@@ -37,7 +38,8 @@ def worker(task):
             mv, t, start, master_seed=1,
             n_restarts=CFG["n_restarts"], cheap_sims=CFG["cheap_sims"],
             sim_start=CFG["sim_start"], sim_step=CFG["sim_step"],
-            final_sims=CFG["final_sims"], adaptive=True, wipes=True, cap=CAP)
+            final_sims=CFG["final_sims"], adaptive=True, wipes=True, cap=CAP,
+            wipe_start=WIPE_START)
         return (t, mv), [int(x) for x in best], float(crit), None
     except Exception as e:
         return (t, mv), None, -1e9, repr(e)
@@ -65,7 +67,8 @@ def save(decks, crits, done, total, elapsed):
             brackets[str(s)] = {str(mu): {str(mv): reweight(decks, mu, s)[mv] for mv in MVS}
                                 for mu in CENTERS}
     with open(OUT, "w") as f:
-        json.dump({"cfg": CFG, "cap": CAP, "done": done, "total": total,
+        json.dump({"cfg": CFG, "cap": CAP, "wipe_start": WIPE_START,
+                   "done": done, "total": total,
                    "elapsed_s": round(elapsed),
                    "raw": {f"{t},{mv}": {"deck": decks[(t, mv)], "crit": crits[(t, mv)]}
                            for (t, mv) in decks},
@@ -73,18 +76,25 @@ def save(decks, crits, done, total, elapsed):
 
 
 def main():
-    global OUT, SEED_DECKS
+    global OUT, SEED_DECKS, CAP, TURNS, WIPE_START
     ap = argparse.ArgumentParser()
     ap.add_argument("--seed-json", type=str, default="")
     ap.add_argument("--workers", type=int, default=11)
     ap.add_argument("--restarts", type=int, default=CFG["n_restarts"])
     ap.add_argument("--cheap-sims", type=int, default=CFG["cheap_sims"])
     ap.add_argument("--final-sims", type=int, default=CFG["final_sims"])
+    ap.add_argument("--cap", type=float, default=CAP)
+    ap.add_argument("--wipe-start", type=int, default=WIPE_START)
+    ap.add_argument("--turns-min", type=int, default=TURNS[0])
+    ap.add_argument("--turns-max", type=int, default=TURNS[-1])
     ap.add_argument("--out", type=str, default=OUT)
     a = ap.parse_args()
     CFG["n_restarts"] = a.restarts
     CFG["cheap_sims"] = a.cheap_sims
     CFG["final_sims"] = a.final_sims
+    CAP = a.cap
+    WIPE_START = a.wipe_start
+    TURNS = list(range(a.turns_min, a.turns_max + 1))
     OUT = a.out
     if a.seed_json:
         raw = json.load(open(a.seed_json))["raw"]
@@ -94,7 +104,8 @@ def main():
     cells = [(t, mv) for t in TURNS for mv in MVS]
     decks, crits = {}, {}
     t0 = time.time()
-    print(f"run_final: {len(cells)} cells, cap={CAP}, {CFG}", flush=True)
+    print(f"run_final: {len(cells)} cells, cap={CAP}, wipe_start={WIPE_START}, "
+          f"{CFG}", flush=True)
     with Pool(a.workers) as p:
         for i, (key, deck, crit, err) in enumerate(p.imap_unordered(worker, cells), 1):
             if err is None:
